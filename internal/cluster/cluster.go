@@ -15,14 +15,24 @@ import (
 	"github.com/dleandro/transfer-scout-api/internal/store"
 )
 
+// reliabilityNudge is how much a contributing source's reliability_score
+// moves (clamped to [0, 100] by the store) when a rumour they reported on
+// resolves. Simple, documented heuristic: confirmed = credit, collapsed =
+// penalty for every source that reported on it, regardless of which
+// status they reported at. This doesn't distinguish "accurately reported
+// a deal that later fell through" from "got it wrong" — real-world
+// nuance that's out of scope for the MVP.
+const reliabilityNudge = 2.0
+
 // Store is the subset of store.Store the clusterer needs. Defined here
 // (rather than depending on the concrete *store.Store) so Upsert can be
 // exercised in tests against a fake, without a real Postgres connection.
 type Store interface {
 	GetOrCreateClub(ctx context.Context, name string) (uuid.UUID, error)
 	GetOrCreatePlayer(ctx context.Context, name string) (uuid.UUID, error)
-	UpsertRumour(ctx context.Context, p store.UpsertRumourParams) (models.Rumour, error)
+	UpsertRumour(ctx context.Context, p store.UpsertRumourParams) (rumour models.Rumour, justResolved bool, err error)
 	InsertRumourEvent(ctx context.Context, p store.RumourEventParams) error
+	NudgeSourceReliability(ctx context.Context, rumourID uuid.UUID, delta float64) error
 }
 
 type Clusterer struct {
@@ -69,7 +79,7 @@ func (c *Clusterer) Upsert(ctx context.Context, articleID, sourceID uuid.UUID, r
 	confidence := result.Confidence
 	status := models.RumourStatus(result.Status)
 
-	rumour, err := c.store.UpsertRumour(ctx, store.UpsertRumourParams{
+	rumour, justResolved, err := c.store.UpsertRumour(ctx, store.UpsertRumourParams{
 		PlayerID:       playerID,
 		FromClubID:     fromClubID,
 		ToClubID:       toClubID,
@@ -95,6 +105,19 @@ func (c *Clusterer) Upsert(ctx context.Context, articleID, sourceID uuid.UUID, r
 		Confidence: &confidence,
 	}); err != nil {
 		return uuid.Nil, fmt.Errorf("cluster: insert rumour event: %w", err)
+	}
+
+	if justResolved {
+		delta := reliabilityNudge
+		if rumour.Status == models.StatusCollapsed {
+			delta = -reliabilityNudge
+		}
+		// Nudge after inserting this article's own event, so the source
+		// that broke the resolving news is included alongside everyone
+		// else who reported on this rumour.
+		if err := c.store.NudgeSourceReliability(ctx, rumour.ID, delta); err != nil {
+			return uuid.Nil, fmt.Errorf("cluster: nudge source reliability: %w", err)
+		}
 	}
 
 	return rumour.ID, nil

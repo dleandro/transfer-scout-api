@@ -31,8 +31,11 @@ type rumourView struct {
 	FeeMaxEUR      *float64            `json:"fee_max_eur,omitempty"`
 	Summary        *string             `json:"summary,omitempty"`
 	Confidence     *float64            `json:"confidence,omitempty"`
-	CreatedAt      time.Time           `json:"created_at"`
-	UpdatedAt      time.Time           `json:"updated_at"`
+	// Credibility is the average reliability_score (0-100) across this
+	// rumour's contributing sources — see store.RumourFeedItem.
+	Credibility *float64  `json:"credibility,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 func newRumourView(item store.RumourFeedItem) rumourView {
@@ -46,6 +49,7 @@ func newRumourView(item store.RumourFeedItem) rumourView {
 		FeeMaxEUR:      item.FeeMaxEUR,
 		Summary:        item.Summary,
 		Confidence:     item.Confidence,
+		Credibility:    item.Credibility,
 		CreatedAt:      item.CreatedAt,
 		UpdatedAt:      item.UpdatedAt,
 	}

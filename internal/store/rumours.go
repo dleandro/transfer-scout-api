@@ -24,7 +24,8 @@ type pgxScanner interface {
 }
 
 // RumourFeedItem is a rumour joined with the player/club names and crests
-// needed to render it without N+1 lookups per row.
+// needed to render it without N+1 lookups per row, plus a credibility
+// indicator derived from the reliability of its contributing sources.
 type RumourFeedItem struct {
 	models.Rumour
 	PlayerName    string
@@ -32,12 +33,20 @@ type RumourFeedItem struct {
 	ToClubCrest   *string
 	FromClubName  *string
 	FromClubCrest *string
+	// Credibility is the average reliability_score (0-100) across the
+	// distinct sources that reported this rumour. NULL if the rumour
+	// somehow has no events yet.
+	Credibility *float64
 }
 
 const rumourFeedSelect = `
 	SELECT r.id, r.player_id, r.from_club_id, r.to_club_id, r.transfer_window, r.status,
 	       r.fee_min_eur, r.fee_max_eur, r.summary, r.confidence, r.created_at, r.updated_at,
-	       p.name, tc.name, tc.crest_url, fc.name, fc.crest_url
+	       p.name, tc.name, tc.crest_url, fc.name, fc.crest_url,
+	       (SELECT AVG(src.reliability_score)
+	          FROM rumour_events re
+	          JOIN sources src ON src.id = re.source_id
+	         WHERE re.rumour_id = r.id) AS credibility
 	FROM rumours r
 	JOIN players p ON p.id = r.player_id
 	JOIN clubs tc ON tc.id = r.to_club_id
@@ -46,7 +55,8 @@ const rumourFeedSelect = `
 func scanRumourFeedItem(row pgxScanner, item *RumourFeedItem) error {
 	return row.Scan(&item.ID, &item.PlayerID, &item.FromClubID, &item.ToClubID, &item.TransferWindow, &item.Status,
 		&item.FeeMinEUR, &item.FeeMaxEUR, &item.Summary, &item.Confidence, &item.CreatedAt, &item.UpdatedAt,
-		&item.PlayerName, &item.ToClubName, &item.ToClubCrest, &item.FromClubName, &item.FromClubCrest)
+		&item.PlayerName, &item.ToClubName, &item.ToClubCrest, &item.FromClubName, &item.FromClubCrest,
+		&item.Credibility)
 }
 
 // ListRumours returns the most recently updated rumours, enriched with
@@ -137,29 +147,38 @@ type UpsertRumourParams struct {
 // reported figure (LEAST/GREATEST, which Postgres treats NULL as "ignore"
 // for); summary/confidence take the latest report.
 //
+// justResolved reports whether this call is what moved the rumour from a
+// non-terminal status into a terminal one (confirmed/collapsed) — true
+// exactly once per rumour, on the first upsert that resolves it, since
+// every subsequent upsert sees the rumour already terminal. Callers use
+// this to trigger a one-time side effect (e.g. nudging source
+// reliability) rather than repeating it on every later report.
+//
 // Not wrapped in a transaction: safe under cmd/extract's current
 // single-process, sequential-batch execution model (articles are
 // processed one at a time in a loop), but a second extraction worker
 // running concurrently against the same player/club/window could race on
 // the read-then-decide-status step. Add a `SELECT ... FOR UPDATE`
 // transaction here first if extraction is ever parallelized.
-func (s *Store) UpsertRumour(ctx context.Context, p UpsertRumourParams) (models.Rumour, error) {
+func (s *Store) UpsertRumour(ctx context.Context, p UpsertRumourParams) (rumour models.Rumour, justResolved bool, err error) {
 	var existing models.Rumour
-	err := scanRumour(s.Pool.QueryRow(ctx, `
+	err = scanRumour(s.Pool.QueryRow(ctx, `
 		SELECT `+rumourColumns+` FROM rumours
 		WHERE player_id = $1 AND to_club_id = $2 AND transfer_window = $3`,
 		p.PlayerID, p.ToClubID, p.TransferWindow), &existing)
 
 	finalStatus := p.Status
+	wasTerminal := false
 	switch {
 	case err == nil:
+		wasTerminal = existing.Status.IsTerminal()
 		if !existing.Status.IsForwardTransition(p.Status) {
 			finalStatus = existing.Status
 		}
 	case errors.Is(err, pgx.ErrNoRows):
 		// No existing rumour — nothing to compare against.
 	default:
-		return models.Rumour{}, err
+		return models.Rumour{}, false, err
 	}
 
 	var r models.Rumour
@@ -178,9 +197,22 @@ func (s *Store) UpsertRumour(ctx context.Context, p UpsertRumourParams) (models.
 		p.PlayerID, p.FromClubID, p.ToClubID, p.TransferWindow, finalStatus,
 		p.FeeMinEUR, p.FeeMaxEUR, p.Summary, p.Confidence), &r)
 	if err != nil {
-		return models.Rumour{}, err
+		return models.Rumour{}, false, err
 	}
-	return r, nil
+	return r, !wasTerminal && r.Status.IsTerminal(), nil
+}
+
+// NudgeSourceReliability adjusts reliability_score by delta (clamped to
+// [0, 100]) for every source with at least one rumour_event on rumourID.
+// Intended to be called once per rumour resolution — see UpsertRumour's
+// justResolved.
+func (s *Store) NudgeSourceReliability(ctx context.Context, rumourID uuid.UUID, delta float64) error {
+	_, err := s.Pool.Exec(ctx, `
+		UPDATE sources
+		SET reliability_score = LEAST(100, GREATEST(0, reliability_score + $2))
+		WHERE id IN (SELECT DISTINCT source_id FROM rumour_events WHERE rumour_id = $1)`,
+		rumourID, delta)
+	return err
 }
 
 // RumourEventParams are the inputs to InsertRumourEvent.
