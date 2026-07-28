@@ -23,59 +23,97 @@ type pgxScanner interface {
 	Scan(dest ...any) error
 }
 
-// ListRumours returns the most recently updated rumours. Player and club
-// names are not yet joined in — see milestone 1.5 for feed enrichment.
-func (s *Store) ListRumours(ctx context.Context, limit, offset int) ([]models.Rumour, error) {
-	rows, err := s.Pool.Query(ctx, `
-		SELECT `+rumourColumns+`
-		FROM rumours
-		ORDER BY updated_at DESC
+// RumourFeedItem is a rumour joined with the player/club names and crests
+// needed to render it without N+1 lookups per row.
+type RumourFeedItem struct {
+	models.Rumour
+	PlayerName    string
+	ToClubName    string
+	ToClubCrest   *string
+	FromClubName  *string
+	FromClubCrest *string
+}
+
+const rumourFeedSelect = `
+	SELECT r.id, r.player_id, r.from_club_id, r.to_club_id, r.transfer_window, r.status,
+	       r.fee_min_eur, r.fee_max_eur, r.summary, r.confidence, r.created_at, r.updated_at,
+	       p.name, tc.name, tc.crest_url, fc.name, fc.crest_url
+	FROM rumours r
+	JOIN players p ON p.id = r.player_id
+	JOIN clubs tc ON tc.id = r.to_club_id
+	LEFT JOIN clubs fc ON fc.id = r.from_club_id`
+
+func scanRumourFeedItem(row pgxScanner, item *RumourFeedItem) error {
+	return row.Scan(&item.ID, &item.PlayerID, &item.FromClubID, &item.ToClubID, &item.TransferWindow, &item.Status,
+		&item.FeeMinEUR, &item.FeeMaxEUR, &item.Summary, &item.Confidence, &item.CreatedAt, &item.UpdatedAt,
+		&item.PlayerName, &item.ToClubName, &item.ToClubCrest, &item.FromClubName, &item.FromClubCrest)
+}
+
+// ListRumours returns the most recently updated rumours, enriched with
+// player/club names and crests.
+func (s *Store) ListRumours(ctx context.Context, limit, offset int) ([]RumourFeedItem, error) {
+	rows, err := s.Pool.Query(ctx, rumourFeedSelect+`
+		ORDER BY r.updated_at DESC
 		LIMIT $1 OFFSET $2`, limit, offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var rumours []models.Rumour
+	var items []RumourFeedItem
 	for rows.Next() {
-		var r models.Rumour
-		if err := scanRumour(rows, &r); err != nil {
+		var item RumourFeedItem
+		if err := scanRumourFeedItem(rows, &item); err != nil {
 			return nil, err
 		}
-		rumours = append(rumours, r)
+		items = append(items, item)
 	}
-	return rumours, rows.Err()
+	return items, rows.Err()
 }
 
-// GetRumourByID returns a single rumour and its full event timeline,
-// oldest event first.
-func (s *Store) GetRumourByID(ctx context.Context, id uuid.UUID) (*models.Rumour, []models.RumourEvent, error) {
-	var r models.Rumour
-	row := s.Pool.QueryRow(ctx, `SELECT `+rumourColumns+` FROM rumours WHERE id = $1`, id)
-	if err := scanRumour(row, &r); err != nil {
+// RumourEventItem is a rumour_event joined with the source name and
+// article URL/title needed to render a timeline entry.
+type RumourEventItem struct {
+	models.RumourEvent
+	SourceName   string
+	ArticleURL   string
+	ArticleTitle string
+}
+
+// GetRumourByID returns a single rumour (enriched with player/club
+// names and crests) and its full event timeline, oldest first, each
+// event enriched with its source name and article URL/title.
+func (s *Store) GetRumourByID(ctx context.Context, id uuid.UUID) (*RumourFeedItem, []RumourEventItem, error) {
+	var item RumourFeedItem
+	if err := scanRumourFeedItem(s.Pool.QueryRow(ctx, rumourFeedSelect+` WHERE r.id = $1`, id), &item); err != nil {
 		return nil, nil, err
 	}
 
 	rows, err := s.Pool.Query(ctx, `
-		SELECT id, rumour_id, article_id, source_id, status, fee_min_eur, fee_max_eur, summary, confidence, created_at
-		FROM rumour_events
-		WHERE rumour_id = $1
-		ORDER BY created_at`, id)
+		SELECT e.id, e.rumour_id, e.article_id, e.source_id, e.status,
+		       e.fee_min_eur, e.fee_max_eur, e.summary, e.confidence, e.created_at,
+		       s.name, a.url, a.title
+		FROM rumour_events e
+		JOIN sources s ON s.id = e.source_id
+		JOIN articles a ON a.id = e.article_id
+		WHERE e.rumour_id = $1
+		ORDER BY e.created_at`, id)
 	if err != nil {
 		return nil, nil, err
 	}
 	defer rows.Close()
 
-	var events []models.RumourEvent
+	var events []RumourEventItem
 	for rows.Next() {
-		var ev models.RumourEvent
+		var ev RumourEventItem
 		if err := rows.Scan(&ev.ID, &ev.RumourID, &ev.ArticleID, &ev.SourceID, &ev.Status,
-			&ev.FeeMinEUR, &ev.FeeMaxEUR, &ev.Summary, &ev.Confidence, &ev.CreatedAt); err != nil {
+			&ev.FeeMinEUR, &ev.FeeMaxEUR, &ev.Summary, &ev.Confidence, &ev.CreatedAt,
+			&ev.SourceName, &ev.ArticleURL, &ev.ArticleTitle); err != nil {
 			return nil, nil, err
 		}
 		events = append(events, ev)
 	}
-	return &r, events, rows.Err()
+	return &item, events, rows.Err()
 }
 
 // UpsertRumourParams are the inputs to UpsertRumour, derived from a single
