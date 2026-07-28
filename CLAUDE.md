@@ -43,16 +43,22 @@ backend, priority) and `transfer-scout-web` (Next.js frontend, later).
 - PL only for the MVP. Current window: `summer-2026` (`TRANSFER_WINDOW` env
   var, defaults to this in `internal/config`).
 
-## Current status (as of Milestone 0)
+## Current status (as of Milestone 1.2)
 
 **2026-07-28: the api repo arrived on GitHub with no scaffolding** — just an
 auto-generated README and one "Initial commit", despite the original brief
 assuming initial code already existed. This was confirmed with the project
 owner, who asked for the scaffolding to be built from scratch as Milestone
-0 (GitHub issue #1), ahead of the numbered Milestone 1 task list (issues
-#2-#5, corresponding to Milestone 1 tasks 2-6 in the original brief;
-"Milestone 1 task 1: fix compilation" was subsumed into building the
-scaffolding correctly the first time).
+0 (GitHub issue #1), ahead of the numbered Milestone 1 task list ("Milestone
+1 task 1: fix compilation" was subsumed into building the scaffolding
+correctly the first time). See the issue-number map at the bottom of this
+file — issue numbers do not run sequentially with milestone numbers, because
+one issue-creation command was accidentally skipped and re-filed later.
+
+PRs in this project are **stacked**: each milestone's branch is based on the
+previous milestone's branch (not `main`), so they can be reviewed and merged
+in order. Do not rebase a later branch onto `main` while earlier PRs in the
+stack are still open.
 
 Milestone 0 delivered a working, verified-end-to-end skeleton:
 
@@ -69,8 +75,12 @@ Milestone 0 delivered a working, verified-end-to-end skeleton:
   enrichment yet). Smoke-tested live against Postgres.
 - `cmd/ingest`: full poller — tickers, fetches each source's feed via
   gofeed, stores articles deduped on URL (`ON CONFLICT (url) DO NOTHING`).
-  Not yet exercised against a real feed because no source has a `feed_url`
-  yet — that's Milestone 1.2.
+  **Milestone 1.2** populated real, verified-reachable RSS feed URLs for 8
+  of the 10 seeded sources (`seed/seed.sql`) — talkSPORT and The Athletic
+  have no public feed (JS SPA / paywalled) and are left `NULL`. Verified
+  end-to-end against live feeds: a real poll stored 331 articles across the
+  8 sources, and a second poll immediately after stored zero new rows
+  (dedup confirmed on real data, not just the unit test fixture).
 - `cmd/extract`: honest stub. Reports the count of unprocessed articles and
   calls `extract.StubExtractor`, which always returns
   `extract.ErrNotImplemented`. No model integration yet — Milestone 1.3.
@@ -105,19 +115,16 @@ Milestone 0 delivered a working, verified-end-to-end skeleton:
   transition logic).
 - PRs are left open for the project owner to review — do not self-merge.
 
-## Milestone 1 task list (GitHub issues #2-#5 in this repo)
+## Milestone 1 task list and issue numbers
 
-2. Populate real RSS feed URLs for the seeded sources; verify `cmd/ingest`
-   stores articles end-to-end.
-3. Implement the LLM extraction worker (`cmd/extract`): pull unprocessed
-   articles, call the model with `extract.SystemPrompt`, parse the JSON,
-   mark articles processed.
-4. Rumour upsert + clustering: map extracted club/player names to IDs
-   (create if missing), upsert on (player_id, to_club_id, transfer_window),
-   append a `rumour_event`, handle status transitions and fee-range
-   updates.
-5. Flesh out the API: full event timeline + player/club enrichment (names,
-   crests) on `GET /api/v1/rumours/{id}` and the feed response.
-6. Source-reliability scoring: nudge source reliability when a rumour
-   resolves (confirmed/collapsed); expose a per-rumour credibility
-   indicator.
+Issue numbers are out of order with milestone numbers — #6 was never
+created (a `cd` failure silently dropped it from a batch of `gh issue
+create` calls) and was re-filed as #7 afterward.
+
+| Milestone | Issue | Status | Task |
+|-----------|-------|--------|------|
+| 1.2 | #7 | done | Real RSS feed URLs for seeded sources; verify `cmd/ingest` stores articles end-to-end. |
+| 1.3 | #2 | pending | LLM extraction worker (`cmd/extract`): pull unprocessed articles, call the model with `extract.SystemPrompt`, parse the JSON, mark articles processed. |
+| 1.4 | #3 | pending | Rumour upsert + clustering: map extracted club/player names to IDs (create if missing), upsert on (player_id, to_club_id, transfer_window), append a `rumour_event`, handle status transitions and fee-range updates. |
+| 1.5 | #4 | pending | Flesh out the API: full event timeline + player/club enrichment (names, crests) on `GET /api/v1/rumours/{id}` and the feed response. |
+| 1.6 | #5 | pending | Source-reliability scoring: nudge source reliability when a rumour resolves (confirmed/collapsed); expose a per-rumour credibility indicator. |
