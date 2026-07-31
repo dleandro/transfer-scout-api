@@ -7,18 +7,26 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/mmcdole/gofeed"
 
 	"github.com/dleandro/transfer-scout-api/internal/models"
-	"github.com/dleandro/transfer-scout-api/internal/store"
 )
 
+// Store is the subset of store.Store the ingest worker needs. Defined here
+// (rather than depending on the concrete *store.Store) so PollOnce can be
+// exercised in tests against a fake, without a real Postgres connection.
+type Store interface {
+	ListSources(ctx context.Context) ([]models.Source, error)
+	InsertArticle(ctx context.Context, a models.Article) (uuid.UUID, bool, error)
+}
+
 type Poller struct {
-	store  *store.Store
+	store  Store
 	parser *gofeed.Parser
 }
 
-func NewPoller(s *store.Store) *Poller {
+func NewPoller(s Store) *Poller {
 	return &Poller{store: s, parser: gofeed.NewParser()}
 }
 
