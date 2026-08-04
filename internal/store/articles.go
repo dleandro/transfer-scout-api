@@ -55,9 +55,11 @@ func (s *Store) ListUnprocessed(ctx context.Context, limit int) ([]models.Articl
 	return articles, rows.Err()
 }
 
-// MarkProcessed flags an article as having been through extraction,
-// regardless of whether extraction found a usable rumour in it.
-func (s *Store) MarkProcessed(ctx context.Context, id uuid.UUID) error {
-	_, err := s.Pool.Exec(ctx, `UPDATE articles SET processed = true WHERE id = $1`, id)
+// MarkExtracted flags an article as having been through extraction and
+// stores the raw extraction result JSON. extractionJSON is nil when
+// extraction failed or found nothing usable — the article is still marked
+// processed so the worker doesn't retry it forever.
+func (s *Store) MarkExtracted(ctx context.Context, id uuid.UUID, extractionJSON []byte) error {
+	_, err := s.Pool.Exec(ctx, `UPDATE articles SET processed = true, extraction = $2 WHERE id = $1`, id, extractionJSON)
 	return err
 }

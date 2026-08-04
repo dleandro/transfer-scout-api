@@ -21,7 +21,7 @@ func Load() (Config, error) {
 	cfg := Config{
 		DatabaseURL:    getEnv("DATABASE_URL", ""),
 		APIPort:        getEnv("API_PORT", "8080"),
-		ExtractModel:   getEnv("EXTRACT_MODEL", ""),
+		ExtractModel:   getEnv("EXTRACT_MODEL", "claude-haiku-4-5-20251001"),
 		ExtractAPIKey:  getEnv("EXTRACT_API_KEY", ""),
 		TransferWindow: getEnv("TRANSFER_WINDOW", "summer-2026"),
 	}

@@ -22,10 +22,11 @@ backend, priority) and `transfer-scout-web` (Next.js frontend, later).
   (1.25.3) rather than an artificially pinned older pgx. Flagged, not
   silently changed.
 - Three binaries: `cmd/api` (REST API), `cmd/ingest` (RSS poller on a
-  ticker), `cmd/extract` (LLM extraction worker — currently a **stub**, see
-  Milestone 1.3). `cmd/migrate` is a fourth, dev-only binary wrapping
-  golang-migrate for `make migrate-up`/`make migrate-down` — not part of
-  the three application binaries.
+  ticker), `cmd/extract` (LLM extraction worker — one-shot batch, not a
+  ticker loop; calls the Anthropic Messages API, see Milestone 1.3).
+  `cmd/migrate` is a fourth, dev-only binary wrapping golang-migrate for
+  `make migrate-up`/`make migrate-down` — not part of the three application
+  binaries.
 - Core entity is a "rumour": a long-lived thread UNIQUE per (player_id,
   to_club_id, transfer_window). The column is `transfer_window`, not
   `window` (reserved word).
@@ -43,7 +44,7 @@ backend, priority) and `transfer-scout-web` (Next.js frontend, later).
 - PL only for the MVP. Current window: `summer-2026` (`TRANSFER_WINDOW` env
   var, defaults to this in `internal/config`).
 
-## Current status (as of Milestone 1.2)
+## Current status (as of Milestone 1.3)
 
 **2026-07-28: the api repo arrived on GitHub with no scaffolding** — just an
 auto-generated README and one "Initial commit", despite the original brief
@@ -81,11 +82,37 @@ Milestone 0 delivered a working, verified-end-to-end skeleton:
   end-to-end against live feeds: a real poll stored 331 articles across the
   8 sources, and a second poll immediately after stored zero new rows
   (dedup confirmed on real data, not just the unit test fixture).
-- `cmd/extract`: honest stub. Reports the count of unprocessed articles and
-  calls `extract.StubExtractor`, which always returns
-  `extract.ErrNotImplemented`. No model integration yet — Milestone 1.3.
+- `cmd/extract`: **Milestone 1.3** implemented `extract.AnthropicExtractor`
+  (`internal/extract/anthropic.go`) — calls the Anthropic Messages API with
+  `extract.SystemPrompt`, strips markdown code fences the model sometimes
+  wraps JSON in, parses into `extract.Result`, and validates status/
+  confidence before accepting it. `cmd/extract` runs one batch (50 articles)
+  per invocation — not a ticker loop like ingest; schedule it externally
+  (cron/systemd timer). Falls back to `extract.StubExtractor` (always
+  `ErrNotImplemented`) if `EXTRACT_API_KEY` is unset, so it's safe to run
+  in dev without a key. New nullable `articles.extraction JSONB` column
+  (migration 0002) holds the raw successful result; `articles.processed`
+  is set `true` either way, so failed/unusable articles aren't retried
+  forever. **Not yet exercised against a real model call** — no
+  `ANTHROPIC_API_KEY` was available in the session that built this
+  (checked; not present in the environment). Covered instead by:
+  1. Unit tests (`internal/extract/anthropic_test.go`) mocking the
+     Anthropic response shape via `httptest` — success, code-fence
+     stripping, invalid status, out-of-range confidence, non-200 API
+     errors, malformed JSON.
+  2. A live run of `cmd/extract` in stub mode against the 331 real
+     articles from Milestone 1.2 — confirmed it correctly marks a batch of
+     50 processed, leaves 281 unprocessed, and stores no `extraction` JSON
+     (since the stub always fails), proving the list/mark-processed/
+     persist plumbing works against real Postgres. **If you have a real
+     `EXTRACT_API_KEY`, running `cmd/extract` for real is the one
+     remaining gap** — do that before trusting the Anthropic integration
+     in production.
 - Rumour upsert/clustering: **not implemented** — Milestone 1.4. Nothing
-  currently turns an article into a rumour.
+  currently turns an article's extraction into a rumour. Because no live
+  model call has happened yet, there's no real `articles.extraction` data
+  to upsert from either — Milestone 1.4 will need to seed some synthetic
+  extraction JSON (or a fake `extract.Extractor`) to test against.
 - Source reliability: schema field exists (`sources.reliability_score`,
   default 50.00) but nothing updates it yet — Milestone 1.6.
 
@@ -124,7 +151,7 @@ create` calls) and was re-filed as #7 afterward.
 | Milestone | Issue | Status | Task |
 |-----------|-------|--------|------|
 | 1.2 | #7 | done | Real RSS feed URLs for seeded sources; verify `cmd/ingest` stores articles end-to-end. |
-| 1.3 | #2 | pending | LLM extraction worker (`cmd/extract`): pull unprocessed articles, call the model with `extract.SystemPrompt`, parse the JSON, mark articles processed. |
+| 1.3 | #2 | done | LLM extraction worker (`cmd/extract`): pull unprocessed articles, call the model with `extract.SystemPrompt`, parse the JSON, mark articles processed. |
 | 1.4 | #3 | pending | Rumour upsert + clustering: map extracted club/player names to IDs (create if missing), upsert on (player_id, to_club_id, transfer_window), append a `rumour_event`, handle status transitions and fee-range updates. |
 | 1.5 | #4 | pending | Flesh out the API: full event timeline + player/club enrichment (names, crests) on `GET /api/v1/rumours/{id}` and the feed response. |
 | 1.6 | #5 | pending | Source-reliability scoring: nudge source reliability when a rumour resolves (confirmed/collapsed); expose a per-rumour credibility indicator. |
