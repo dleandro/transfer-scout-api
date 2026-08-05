@@ -21,28 +21,41 @@ type pgxScanner interface {
 	Scan(dest ...any) error
 }
 
-// ListRumours returns the most recently updated rumours. Player and club
-// names are not yet joined in — see milestone 1.5 for feed enrichment.
-func (s *Store) ListRumours(ctx context.Context, limit, offset int) ([]models.Rumour, error) {
+// ListRumours returns the most recently updated rumours, one page at a
+// time (limit/offset), along with whether a further page exists beyond
+// this one. Player and club names are not yet joined in — see milestone
+// 1.5 for feed enrichment.
+//
+// hasMore is computed by requesting limit+1 rows and trimming the extra
+// one if present, rather than a separate COUNT(*) query — cheaper, and
+// avoids a second round trip for every page.
+func (s *Store) ListRumours(ctx context.Context, limit, offset int) (rumours []models.Rumour, hasMore bool, err error) {
 	rows, err := s.Pool.Query(ctx, `
 		SELECT `+rumourColumns+`
 		FROM rumours
 		ORDER BY updated_at DESC
-		LIMIT $1 OFFSET $2`, limit, offset)
+		LIMIT $1 OFFSET $2`, limit+1, offset)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	defer rows.Close()
 
-	var rumours []models.Rumour
 	for rows.Next() {
 		var r models.Rumour
 		if err := scanRumour(rows, &r); err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		rumours = append(rumours, r)
 	}
-	return rumours, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, false, err
+	}
+
+	if len(rumours) > limit {
+		rumours = rumours[:limit]
+		hasMore = true
+	}
+	return rumours, hasMore, nil
 }
 
 // GetRumourByID returns a single rumour and its full event timeline,

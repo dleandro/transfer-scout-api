@@ -44,6 +44,45 @@ backend, priority) and `transfer-scout-web` (Next.js frontend, later).
 - PL only for the MVP. Current window: `summer-2026` (`TRANSFER_WINDOW` env
   var, defaults to this in `internal/config`).
 
+## Current status (as of Milestone 2.1)
+
+**2026-08-05: Milestone 2.1 (`GET /api/v1/rumours` pagination)** — built on
+top of Milestone 1.3's `main`, since the base list endpoint was already
+merged there; not stacked on the (still-open, as of this writing)
+Milestone 1.4–1.6 branches, which also touch `internal/api/handlers.go` /
+`internal/store/rumours.go` for feed enrichment and credibility. Whichever
+of these merges second will need a small manual reconciliation — flagged,
+not silently avoided.
+
+- `GET /api/v1/rumours` now takes `limit` and `offset` query params
+  (`strconv.Atoi`) instead of a hardcoded `limit=50, offset=0`.
+  - `limit`: default 50. Clamped into `[1, 100]` if a valid integer
+    outside that range is given (e.g. `limit=500` silently becomes 100)
+    — a deliberate choice to avoid a client requesting an unbounded page.
+  - `offset`: default 0. Negative values are clamped to 0.
+  - A value that isn't a valid integer at all (e.g. `limit=abc`) is
+    treated differently from an out-of-range one: it's a 400 Bad
+    Request, not a silent fallback, since it usually indicates a client
+    bug worth surfacing rather than a legitimate large/negative request.
+  - See `parseIntParam` in `internal/api/handlers.go`.
+- **Response shape changed** (breaking change to the previous contract,
+  coordinated with transfer-scout-web in the same milestone): `GET
+  /api/v1/rumours` now returns `{"rumours": [...], "has_more": bool}`
+  instead of a bare JSON array. `rumours` can still be `null` (not `[]`)
+  when the page is empty — same Go nil-slice-marshals-to-null quirk as
+  before, now nested one level down; callers need to null-coalesce
+  `data.rumours`, not just the top-level response.
+  - `has_more` is computed by `store.ListRumours` requesting `limit+1`
+    rows and trimming the extra one if present, rather than a separate
+    `COUNT(*)` query.
+- `GET /api/v1/rumours/{id}` is unchanged by this milestone.
+- Tests: `internal/api/handlers_test.go` unit-tests `parseIntParam`'s
+  parsing/clamping directly (no store dependency, so no fake needed).
+  `internal/store/integration_test.go` (new file on this branch) proves
+  the `limit+1`-and-trim trick against a real Postgres — guarded by
+  `t.Skip` when `DATABASE_URL` is unset, per this repo's usual
+  integration-test convention.
+
 ## Current status (as of Milestone 1.3)
 
 **2026-07-28: the api repo arrived on GitHub with no scaffolding** — just an
