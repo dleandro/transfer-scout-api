@@ -1,11 +1,12 @@
 // Package ingest polls configured news sources' RSS feeds and stores new
-// articles for later extraction.
+// articles for later extraction. One-shot per invocation — run it on a
+// schedule (Cloud Scheduler triggering a Cloud Run Job; cron/systemd
+// timer locally). See internal/extract for the same shape.
 package ingest
 
 import (
 	"context"
 	"log/slog"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/mmcdole/gofeed"
@@ -28,24 +29,6 @@ type Poller struct {
 
 func NewPoller(s Store) *Poller {
 	return &Poller{store: s, parser: gofeed.NewParser()}
-}
-
-// Run polls every source's RSS feed immediately, then again on the given
-// interval, until ctx is cancelled.
-func (p *Poller) Run(ctx context.Context, interval time.Duration) {
-	p.PollOnce(ctx)
-
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			p.PollOnce(ctx)
-		}
-	}
 }
 
 // PollOnce fetches every source's feed and stores any new articles. Sources

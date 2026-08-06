@@ -1,5 +1,7 @@
-// Command ingest polls configured RSS feeds on a ticker and stores new
-// articles for later extraction.
+// Command ingest polls configured RSS feeds and stores new articles for
+// later extraction. It is a one-shot batch job, not a ticker loop — run
+// it on a schedule (Cloud Scheduler triggering a Cloud Run Job; cron/
+// systemd timer locally). See internal/ingest for the poll logic.
 package main
 
 import (
@@ -34,7 +36,7 @@ func main() {
 
 	poller := ingest.NewPoller(store.New(pool))
 
-	slog.Info("ingest: starting", "interval", cfg.IngestPollInterval)
-	poller.Run(ctx, cfg.IngestPollInterval)
-	slog.Info("ingest: stopped")
+	slog.Info("ingest: starting")
+	poller.PollOnce(ctx)
+	slog.Info("ingest: done")
 }
