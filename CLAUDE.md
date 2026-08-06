@@ -47,6 +47,77 @@ backend, priority) and `transfer-scout-web` (Next.js frontend, later).
 - PL only for the MVP. Current window: `summer-2026` (`TRANSFER_WINDOW` env
   var, defaults to this in `internal/config`).
 
+## Current status (as of Milestone 3.1)
+
+**2026-08-06: Milestone 3.1 (users, Google OAuth verification, JWT
+issuance)** — built on top of the `production/*` stack (this repo's
+Cloud-Run/Docker/CI readiness work), not on the Milestone 1.4–1.6 or 2.1
+branches, which also touch this repo. First identity/auth concept
+anywhere in this codebase.
+
+- New `users` table (migration `0003_add_users`), keyed on `google_sub`
+  (Google's durable subject identifier) — `email` is intentionally NOT
+  unique, since it isn't guaranteed permanently stable.
+- New `internal/auth` package: `GoogleVerifier` (wraps
+  `github.com/coreos/go-oidc/v3`, constructed once at `cmd/api` startup —
+  it fetches Google's OIDC discovery document and caches signing keys,
+  so it's deliberately not a stateless per-call function), `IssueToken`/
+  `ParseToken` (HS256 JWT via `github.com/golang-jwt/jwt/v5`, 30-day TTL,
+  a reserved-but-unused `jti` claim), and `RequireAuth` middleware +
+  `KeyByUserID` (an `httprate.KeyFunc` for a future per-user rate limiter
+  on mutating endpoints — see Milestone 3.2/3.3).
+- New `POST /api/v1/auth/google` (public, under the existing shared
+  60/min IP limiter): verifies a Google ID token, upserts the user,
+  returns a Transfer-Scout JWT. Chosen library
+  (`github.com/coreos/go-oidc/v3` + `golang.org/x/oauth2`) over the
+  official `google.golang.org/api/idtoken` for a much lighter dependency
+  tree (`go mod tidy` only added `go-jose` and `x/oauth2` as new
+  transitive deps).
+- `AUTH_JWT_SECRET`/`GOOGLE_CLIENT_ID` are `cmd/api`-only — deliberately
+  NOT validated inside the shared `config.Load()` (which `cmd/ingest`/
+  `cmd/extract` also call and would otherwise fail to start over env
+  vars they never use); `cmd/api/main.go` checks them itself right after
+  `Load()`, same fail-fast spirit as `DatabaseURL` without breaking the
+  other two binaries.
+- **Not tested end-to-end against a real Google account** — no OAuth
+  Client ID/Secret was available in the session that built this (same
+  situation `cmd/extract`'s Anthropic integration was in when first
+  built). Verified instead: `IssueToken`/`ParseToken` round-trip and
+  expiry, `RequireAuth`'s missing/malformed/expired/valid cases,
+  `UpsertUser`'s insert-then-update behavior (real-Postgres integration
+  test), and `POST /api/v1/auth/google`'s error paths (missing/invalid
+  `id_token` → 400/401) live against a real `cmd/api` process — including
+  confirming `NewGoogleVerifier` successfully reaches Google's real OIDC
+  discovery endpoint at startup with a dummy client ID. The one thing
+  *not* exercised is a real, valid Google ID token reaching
+  `handleGoogleAuth` successfully. If you have real Google OAuth
+  credentials, running that end-to-end is the one remaining gap.
+- **Local dev DB note**: while testing this migration, the long-running
+  local dev Postgres (used throughout this repo's history) was found to
+  already have `schema_migrations.version = 3` (dirty=false) despite no
+  migration 3 existing in the repo before now — meaning `migrate up`
+  silently no-op'd against it instead of creating `users`. Cause unknown
+  (not introduced by this change); verified this migration is correct by
+  running it against a clean throwaway Postgres instead. If you hit a
+  missing `users` table against the long-running local dev DB, this is
+  why — worth a proper investigation/reset of that DB at some point.
+
+### Known follow-ups / risk areas (Milestone 3.1)
+
+- No token refresh flow: the Google `id_token` NextAuth receives is only
+  available at initial sign-in, so the 30-day Transfer-Scout JWT can't be
+  silently refreshed — when it expires, the user just signs in again.
+  Explicit trade-off, not a bug.
+- No server-side sign-out/revocation: the JWT is stateless, so signing
+  out only clears the frontend's session cookie. A `jti` claim is
+  reserved (generated, unused) so a future revocation table wouldn't
+  need a token-shape change.
+- `handleGoogleAuth` has no fake-backed handler test (unlike
+  `handleListRumours`/`handleGetRumour`) — `GoogleVerifier` wraps real
+  network calls to Google that aren't easily faked without standing up a
+  mock OIDC server; covered by the live-process verification above
+  instead.
+
 ## Current status (as of Milestone 2.1)
 
 **2026-08-05: Milestone 2.1 (`GET /api/v1/rumours` pagination)** — built on

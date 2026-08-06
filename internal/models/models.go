@@ -107,6 +107,26 @@ type Rumour struct {
 	UpdatedAt      time.Time    `json:"updated_at"`
 }
 
+// User authenticates via Google OAuth only (see internal/auth). Email is
+// not treated as a unique identity key — GoogleSub is.
+type User struct {
+	ID          uuid.UUID `json:"id"`
+	GoogleSub   string    `json:"-"`
+	Email       string    `json:"email"`
+	DisplayName string    `json:"display_name"`
+	AvatarURL   *string   `json:"avatar_url,omitempty"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// Author is the public projection of a User used in comment/reaction
+// responses — deliberately excludes Email.
+type Author struct {
+	ID          uuid.UUID `json:"id"`
+	DisplayName string    `json:"display_name"`
+	AvatarURL   *string   `json:"avatar_url,omitempty"`
+}
+
 type RumourEvent struct {
 	ID         uuid.UUID    `json:"id"`
 	RumourID   uuid.UUID    `json:"rumour_id"`

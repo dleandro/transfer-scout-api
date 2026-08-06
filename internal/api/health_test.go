@@ -24,7 +24,7 @@ func TestHandleHealth_DBUnreachable_Returns503(t *testing.T) {
 	}
 	defer pool.Close()
 
-	srv := NewServer(store.New(pool))
+	srv := NewServer(store.New(pool), "test-secret", nil)
 	w := httptest.NewRecorder()
 	srv.handleHealth(w, httptest.NewRequest(http.MethodGet, "/healthz", nil))
 
@@ -55,7 +55,7 @@ func TestHandleHealth_DBReachable_Returns200(t *testing.T) {
 	}
 	defer pool.Close()
 
-	srv := NewServer(store.New(pool))
+	srv := NewServer(store.New(pool), "test-secret", nil)
 	w := httptest.NewRecorder()
 	srv.handleHealth(w, httptest.NewRequest(http.MethodGet, "/healthz", nil))
 

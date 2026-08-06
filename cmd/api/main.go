@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/dleandro/transfer-scout-api/internal/api"
+	"github.com/dleandro/transfer-scout-api/internal/auth"
 	"github.com/dleandro/transfer-scout-api/internal/config"
 	"github.com/dleandro/transfer-scout-api/internal/db"
 	"github.com/dleandro/transfer-scout-api/internal/store"
@@ -21,6 +22,17 @@ func main() {
 	cfg, err := config.Load()
 	if err != nil {
 		slog.Error("config", "error", err)
+		os.Exit(1)
+	}
+	// AuthJWTSecret/GoogleClientID aren't validated in config.Load() since
+	// cmd/ingest/cmd/extract share it and never need them — cmd/api fails
+	// fast on them here instead, same spirit as DatabaseURL.
+	if cfg.AuthJWTSecret == "" {
+		slog.Error("config", "error", "AUTH_JWT_SECRET is required")
+		os.Exit(1)
+	}
+	if cfg.GoogleClientID == "" {
+		slog.Error("config", "error", "GOOGLE_CLIENT_ID is required")
 		os.Exit(1)
 	}
 
@@ -34,7 +46,13 @@ func main() {
 	}
 	defer pool.Close()
 
-	srv := api.NewServer(store.New(pool))
+	googleVerifier, err := auth.NewGoogleVerifier(ctx, cfg.GoogleClientID)
+	if err != nil {
+		slog.Error("auth", "error", err)
+		os.Exit(1)
+	}
+
+	srv := api.NewServer(store.New(pool), cfg.AuthJWTSecret, googleVerifier)
 
 	httpServer := &http.Server{
 		Addr:    ":" + cfg.APIPort,
