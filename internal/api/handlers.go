@@ -1,14 +1,20 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 )
+
+// healthzTimeout bounds how long the DB ping in handleHealth can take,
+// so a slow/unreachable database doesn't hang the health check itself.
+const healthzTimeout = 2 * time.Second
 
 const (
 	// defaultRumoursLimit is used when the `limit` query param is absent.
@@ -18,7 +24,22 @@ const (
 	maxRumoursLimit = 100
 )
 
+// handleHealth reports liveness plus DB connectivity. The two are
+// genuinely different facts under a database with autosuspend/resume
+// behavior (e.g. Neon) — the process can be up while the DB is not yet
+// reachable.
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), healthzTimeout)
+	defer cancel()
+
+	if err := s.store.Ping(ctx); err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+			"status": "degraded",
+			"db":     "unreachable",
+		})
+		return
+	}
+
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
