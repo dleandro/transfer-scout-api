@@ -127,6 +127,15 @@ type Author struct {
 	AvatarURL   *string   `json:"avatar_url,omitempty"`
 }
 
+type Comment struct {
+	ID        uuid.UUID `json:"id"`
+	RumourID  uuid.UUID `json:"rumour_id"`
+	Author    Author    `json:"author"`
+	Body      string    `json:"body"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 type RumourEvent struct {
 	ID         uuid.UUID    `json:"id"`
 	RumourID   uuid.UUID    `json:"rumour_id"`

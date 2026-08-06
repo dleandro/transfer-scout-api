@@ -25,10 +25,22 @@ type fakeStore struct {
 	user          *models.User
 	upsertUserErr error
 
+	rumourExists    bool
+	rumourExistsErr error
+
+	comments         []models.Comment
+	commentsHasMore  bool
+	listCommentsErr  error
+	createdComment   *models.Comment
+	createCommentErr error
+
 	// captured args, so tests can assert what the handler actually passed
 	// through to the store (e.g. clamped pagination values).
-	gotLimit, gotOffset int
-	gotID               uuid.UUID
+	gotLimit, gotOffset                 int
+	gotID                               uuid.UUID
+	gotCommentBody                      string
+	gotCommentUserID                    uuid.UUID
+	gotCommentsLimit, gotCommentsOffset int
 }
 
 var errStoreUnavailable = errors.New("store: unavailable")
@@ -58,4 +70,27 @@ func (f *fakeStore) UpsertUser(ctx context.Context, googleSub, email, displayNam
 		return nil, f.upsertUserErr
 	}
 	return f.user, nil
+}
+
+func (f *fakeStore) RumourExists(ctx context.Context, id uuid.UUID) (bool, error) {
+	if f.rumourExistsErr != nil {
+		return false, f.rumourExistsErr
+	}
+	return f.rumourExists, nil
+}
+
+func (f *fakeStore) CreateComment(ctx context.Context, rumourID, userID uuid.UUID, body string) (*models.Comment, error) {
+	f.gotID, f.gotCommentUserID, f.gotCommentBody = rumourID, userID, body
+	if f.createCommentErr != nil {
+		return nil, f.createCommentErr
+	}
+	return f.createdComment, nil
+}
+
+func (f *fakeStore) ListComments(ctx context.Context, rumourID uuid.UUID, limit, offset int) ([]models.Comment, bool, error) {
+	f.gotID, f.gotCommentsLimit, f.gotCommentsOffset = rumourID, limit, offset
+	if f.listCommentsErr != nil {
+		return nil, false, f.listCommentsErr
+	}
+	return f.comments, f.commentsHasMore, nil
 }
