@@ -10,6 +10,8 @@ import (
 	"encoding/json"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/dleandro/transfer-scout-api/internal/config"
 	"github.com/dleandro/transfer-scout-api/internal/db"
@@ -27,7 +29,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
 	pool, err := db.New(ctx, cfg.DatabaseURL)
 	if err != nil {
@@ -54,8 +57,15 @@ func main() {
 
 	slog.Info("extract: starting batch", "articles", len(articles), "model", cfg.ExtractModel)
 
-	var extracted, failed int
-	for _, article := range articles {
+	var extracted, failed, skipped int
+	interrupted := false
+	for i, article := range articles {
+		if ctx.Err() != nil {
+			interrupted = true
+			skipped = len(articles) - i
+			break
+		}
+
 		extractionJSON, err := extractOne(ctx, extractor, article)
 		if err != nil {
 			failed++
@@ -67,6 +77,11 @@ func main() {
 		if err := s.MarkExtracted(ctx, article.ID, extractionJSON); err != nil {
 			slog.Error("extract: mark processed", "article_id", article.ID, "error", err)
 		}
+	}
+
+	if interrupted {
+		slog.Warn("extract: interrupted", "extracted", extracted, "failed", failed, "skipped", skipped, "total", len(articles))
+		os.Exit(1)
 	}
 
 	slog.Info("extract: batch complete", "extracted", extracted, "failed", failed, "total", len(articles))
