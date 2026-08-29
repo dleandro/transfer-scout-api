@@ -47,6 +47,44 @@ backend, priority) and `transfer-scout-web` (Next.js frontend, later).
 - PL only for the MVP. Current window: `summer-2026` (`TRANSFER_WINDOW` env
   var, defaults to this in `internal/config`).
 
+## Current status (as of Milestone 3.2)
+
+**2026-08-06: Milestone 3.2 (comments)** — built on top of Milestone
+3.1's `users`/auth stack. First user-generated-content table.
+
+- New `comments` table (migration `0004`), `rumour_id`/`user_id` both
+  `ON DELETE CASCADE`, a `CHECK (char_length(body) BETWEEN 1 AND 2000)`
+  as defense-in-depth behind the handler's own validation.
+- `internal/store/comments.go`: `CreateComment` (a single `INSERT ...
+  RETURNING` CTE joined back to `users` for the author) and
+  `ListComments` (same limit+1-and-trim `hasMore` pattern as
+  `ListRumours`, oldest-first). **Real bug caught by the integration
+  test, not by review**: the first draft aliased the CTE
+  (`FROM inserted AS comments`) but then referenced the pre-alias name
+  in the JOIN condition (`ON users.id = inserted.user_id`) — Postgres
+  correctly rejects this once a FROM-clause entry is aliased. Fixed to
+  reference `comments.user_id` throughout; this only surfaced once
+  actually run against real Postgres, confirming these integration
+  tests earn their keep.
+- New `internal/store.ErrRumourNotFound` sentinel (detected via the
+  insert's `23503` foreign-key-violation Postgres error code), mapped
+  to `404` by the handler — same idea as `sql.ErrNoRows`, exported from
+  the persistence package for the handler package to check with
+  `errors.Is`.
+- New `RumourExists` on `internal/store` (a cheap `SELECT EXISTS`) — the
+  chosen way to 404 `GET .../comments` on an unknown rumour without
+  paying for a full `GetRumourByID` fetch.
+- `POST /api/v1/rumours/{id}/comments` (auth required) and
+  `GET /api/v1/rumours/{id}/comments` (public) — the first authenticated
+  route group in `internal/api/router.go`, wrapping `auth.RequireAuth`
+  + a new `httprate.LimitBy(10, time.Minute, auth.KeyByUserID)`, a much
+  stricter, per-user-keyed limiter stacked on top of the existing
+  shared 60/min-per-IP one on `/api/v1`.
+- Verified live against a real running `cmd/api`: full create → list
+  round-trip, 401 with no token, 404 on both endpoints for an unknown
+  rumour, and the rate limiter actually kicking in at request 11 in a
+  minute (`201` ×10, then `429`).
+
 ## Current status (as of Milestone 3.1)
 
 **2026-08-06: Milestone 3.1 (users, Google OAuth verification, JWT
