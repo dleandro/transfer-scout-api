@@ -1,7 +1,7 @@
 -include .env
 export
 
-.PHONY: build run-api run-ingest run-extract migrate-up migrate-down seed test vet tidy
+.PHONY: build run-api run-ingest run-extract migrate-up migrate-down seed test vet tidy docker-build docker-up docker-migrate docker-ingest docker-extract
 
 build:
 	go build ./...
@@ -32,3 +32,18 @@ vet:
 
 tidy:
 	go mod tidy
+
+docker-build:
+	docker compose build
+
+docker-up:
+	docker compose up db api
+
+docker-migrate:
+	docker compose run --rm migrate
+
+docker-ingest:
+	docker compose run --rm ingest
+
+docker-extract:
+	docker compose run --rm extract

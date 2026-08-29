@@ -16,5 +16,60 @@ services:
       timeout: 5s
       retries: 10
 
+  # x-app-env is shared by api/ingest/extract/migrate below: same env_file
+  # as local dev, but DATABASE_URL is overridden to point at the `db`
+  # compose service by hostname instead of .env's `localhost` (which only
+  # resolves for host-run processes, not containers on the compose
+  # network).
+  api:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-transferscout}:${POSTGRES_PASSWORD:-transferscout}@db:5432/${POSTGRES_DB:-transferscout}?sslmode=disable
+    ports:
+      - "${API_PORT:-8080}:8080"
+
+  # ingest/extract/migrate are on-demand jobs, not always-on services —
+  # this mirrors the Cloud Run "Service vs Job" split from
+  # PRODUCTION_ROADMAP.md before it exists in GCP. `docker compose up`
+  # (with no service names) skips anything in the "jobs" profile; run
+  # them explicitly with `docker compose run --rm <name>`.
+  ingest:
+    build: .
+    profiles: ["jobs"]
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-transferscout}:${POSTGRES_PASSWORD:-transferscout}@db:5432/${POSTGRES_DB:-transferscout}?sslmode=disable
+    command: ["/app/ingest"]
+
+  extract:
+    build: .
+    profiles: ["jobs"]
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-transferscout}:${POSTGRES_PASSWORD:-transferscout}@db:5432/${POSTGRES_DB:-transferscout}?sslmode=disable
+    command: ["/app/extract"]
+
+  migrate:
+    build: .
+    profiles: ["jobs"]
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-transferscout}:${POSTGRES_PASSWORD:-transferscout}@db:5432/${POSTGRES_DB:-transferscout}?sslmode=disable
+    entrypoint: ["/app/migrate"]
+    command: ["up"]
+
 volumes:
   transfer_scout_db_data:
