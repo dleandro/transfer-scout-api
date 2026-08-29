@@ -12,6 +12,8 @@ import (
 	"encoding/json"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/google/uuid"
 
@@ -32,7 +34,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
 	pool, err := db.New(ctx, cfg.DatabaseURL)
 	if err != nil {
@@ -60,8 +63,15 @@ func main() {
 
 	slog.Info("extract: starting batch", "articles", len(articles), "model", cfg.ExtractModel)
 
-	var extracted, clustered, failed int
-	for _, article := range articles {
+	var extracted, clustered, failed, skipped int
+	interrupted := false
+	for i, article := range articles {
+		if ctx.Err() != nil {
+			interrupted = true
+			skipped = len(articles) - i
+			break
+		}
+
 		result, err := extractOne(ctx, extractor, article)
 		var extractionJSON []byte
 		if err != nil {
@@ -85,6 +95,11 @@ func main() {
 		if err := s.MarkExtracted(ctx, article.ID, extractionJSON); err != nil {
 			slog.Error("extract: mark processed", "article_id", article.ID, "error", err)
 		}
+	}
+
+	if interrupted {
+		slog.Warn("extract: interrupted", "extracted", extracted, "clustered", clustered, "failed", failed, "skipped", skipped, "total", len(articles))
+		os.Exit(1)
 	}
 
 	slog.Info("extract: batch complete", "extracted", extracted, "clustered", clustered, "failed", failed, "total", len(articles))
