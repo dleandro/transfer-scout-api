@@ -19,8 +19,10 @@ type Config struct {
 
 func Load() (Config, error) {
 	cfg := Config{
-		DatabaseURL:    getEnv("DATABASE_URL", ""),
-		APIPort:        getEnv("API_PORT", "8080"),
+		DatabaseURL: getEnv("DATABASE_URL", ""),
+		// Cloud Run injects PORT and requires the container to listen on
+		// it; API_PORT is the local-dev override, falling back to 8080.
+		APIPort:        getEnv("PORT", getEnv("API_PORT", "8080")),
 		ExtractModel:   getEnv("EXTRACT_MODEL", "claude-haiku-4-5-20251001"),
 		ExtractAPIKey:  getEnv("EXTRACT_API_KEY", ""),
 		TransferWindow: getEnv("TRANSFER_WINDOW", "summer-2026"),
