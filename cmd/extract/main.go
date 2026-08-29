@@ -1,8 +1,10 @@
 // Command extract pulls a batch of unprocessed articles, extracts
 // structured rumour data from each via the model configured by
-// EXTRACT_MODEL/EXTRACT_API_KEY, and marks them processed. It is a
-// one-shot batch job, not a ticker loop — run it on a schedule (cron,
-// systemd timer, etc). See internal/extract for the model contract.
+// EXTRACT_MODEL/EXTRACT_API_KEY, upserts a rumour + timeline event for
+// every usable extraction, and marks the article processed either way.
+// It is a one-shot batch job, not a ticker loop — run it on a schedule
+// (cron, systemd timer, etc). See internal/extract for the model
+// contract and internal/cluster for the upsert logic.
 package main
 
 import (
@@ -11,6 +13,9 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/google/uuid"
+
+	"github.com/dleandro/transfer-scout-api/internal/cluster"
 	"github.com/dleandro/transfer-scout-api/internal/config"
 	"github.com/dleandro/transfer-scout-api/internal/db"
 	"github.com/dleandro/transfer-scout-api/internal/extract"
@@ -37,6 +42,7 @@ func main() {
 	defer pool.Close()
 
 	s := store.New(pool)
+	clusterer := cluster.New(s)
 
 	var extractor extract.Extractor
 	if cfg.ExtractAPIKey == "" {
@@ -54,14 +60,26 @@ func main() {
 
 	slog.Info("extract: starting batch", "articles", len(articles), "model", cfg.ExtractModel)
 
-	var extracted, failed int
+	var extracted, clustered, failed int
 	for _, article := range articles {
-		extractionJSON, err := extractOne(ctx, extractor, article)
+		result, err := extractOne(ctx, extractor, article)
+		var extractionJSON []byte
 		if err != nil {
 			failed++
 			slog.Warn("extract: article extraction failed", "article_id", article.ID, "url", article.URL, "error", err)
 		} else {
 			extracted++
+			if extractionJSON, err = json.Marshal(result); err != nil {
+				slog.Error("extract: marshal result", "article_id", article.ID, "error", err)
+				extractionJSON = nil
+			}
+
+			rumourID, err := clusterer.Upsert(ctx, article.ID, article.SourceID, result, cfg.TransferWindow)
+			if err != nil {
+				slog.Error("extract: cluster upsert failed", "article_id", article.ID, "error", err)
+			} else if rumourID != uuid.Nil {
+				clustered++
+			}
 		}
 
 		if err := s.MarkExtracted(ctx, article.ID, extractionJSON); err != nil {
@@ -69,27 +87,15 @@ func main() {
 		}
 	}
 
-	slog.Info("extract: batch complete", "extracted", extracted, "failed", failed, "total", len(articles))
+	slog.Info("extract: batch complete", "extracted", extracted, "clustered", clustered, "failed", failed, "total", len(articles))
 }
 
-// extractOne calls the model for a single article and marshals a
-// successful result to JSON for storage. It returns a nil slice (not an
-// error) when extraction fails, so the caller still marks the article
-// processed.
-func extractOne(ctx context.Context, extractor extract.Extractor, article models.Article) ([]byte, error) {
+// extractOne calls the model for a single article and returns the parsed
+// result.
+func extractOne(ctx context.Context, extractor extract.Extractor, article models.Article) (extract.Result, error) {
 	text := article.Title
 	if article.Content != nil && *article.Content != "" {
 		text += "\n\n" + *article.Content
 	}
-
-	result, err := extractor.Extract(ctx, text)
-	if err != nil {
-		return nil, err
-	}
-
-	extractionJSON, err := json.Marshal(result)
-	if err != nil {
-		return nil, err
-	}
-	return extractionJSON, nil
+	return extractor.Extract(ctx, text)
 }

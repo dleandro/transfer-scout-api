@@ -46,13 +46,15 @@ backend, priority) and `transfer-scout-web` (Next.js frontend, later).
 
 ## Current status (as of Milestone 2.1)
 
-**2026-08-05: Milestone 2.1 (`GET /api/v1/rumours` pagination)** — built on
-top of Milestone 1.3's `main`, since the base list endpoint was already
-merged there; not stacked on the (still-open, as of this writing)
-Milestone 1.4–1.6 branches, which also touch `internal/api/handlers.go` /
-`internal/store/rumours.go` for feed enrichment and credibility. Whichever
-of these merges second will need a small manual reconciliation — flagged,
-not silently avoided.
+**2026-08-05: Milestone 2.1 (`GET /api/v1/rumours` pagination)** — originally
+built on top of Milestone 1.3's `main`, in parallel with the (then still
+open) Milestone 1.4–1.6 branches, which also touched
+`internal/api/handlers.go` / `internal/store/rumours.go` for feed
+enrichment and credibility. Milestone 1.4–1.6 merged first; this milestone
+required the flagged manual reconciliation on merge, combining the
+limit+1-and-trim pagination trick with the enriched `RumourFeedItem`
+query/view path (`store.ListRumours` now returns
+`([]RumourFeedItem, hasMore bool, err error)`).
 
 - `GET /api/v1/rumours` now takes `limit` and `offset` query params
   (`strconv.Atoi`) instead of a hardcoded `limit=50, offset=0`.
@@ -68,22 +70,21 @@ not silently avoided.
 - **Response shape changed** (breaking change to the previous contract,
   coordinated with transfer-scout-web in the same milestone): `GET
   /api/v1/rumours` now returns `{"rumours": [...], "has_more": bool}`
-  instead of a bare JSON array. `rumours` can still be `null` (not `[]`)
-  when the page is empty — same Go nil-slice-marshals-to-null quirk as
-  before, now nested one level down; callers need to null-coalesce
-  `data.rumours`, not just the top-level response.
+  instead of a bare JSON array. `rumours` is `[]`, not `null`, when the
+  page is empty — the enriched response builds `views` via `make()` over
+  the (possibly nil) item slice, so the old nil-slice-to-`null` quirk no
+  longer applies at this nesting level; callers should not rely on it.
   - `has_more` is computed by `store.ListRumours` requesting `limit+1`
     rows and trimming the extra one if present, rather than a separate
     `COUNT(*)` query.
 - `GET /api/v1/rumours/{id}` is unchanged by this milestone.
 - Tests: `internal/api/handlers_test.go` unit-tests `parseIntParam`'s
   parsing/clamping directly (no store dependency, so no fake needed).
-  `internal/store/integration_test.go` (new file on this branch) proves
-  the `limit+1`-and-trim trick against a real Postgres — guarded by
-  `t.Skip` when `DATABASE_URL` is unset, per this repo's usual
-  integration-test convention.
+  `internal/store/integration_test.go` proves the `limit+1`-and-trim trick
+  against a real Postgres — guarded by `t.Skip` when `DATABASE_URL` is
+  unset, per this repo's usual integration-test convention.
 
-## Current status (as of Milestone 1.3)
+## Current status (as of Milestone 1.6 — Milestone 1 complete)
 
 **2026-07-28: the api repo arrived on GitHub with no scaffolding** — just an
 auto-generated README and one "Initial commit", despite the original brief
@@ -110,9 +111,18 @@ Milestone 0 delivered a working, verified-end-to-end skeleton:
   seeded without `feed_url`** (nullable column) — real RSS URLs are
   Milestone 1.2's job. No players or rumours are seeded; those are created
   by the extraction/upsert pipeline (Milestones 1.3/1.4).
-- `cmd/api`: chi router, `/healthz`, `GET /api/v1/rumours` (list, no
-  enrichment yet), `GET /api/v1/rumours/{id}` (rumour + raw event list, no
-  enrichment yet). Smoke-tested live against Postgres.
+- `cmd/api`: chi router, `/healthz`, `GET /api/v1/rumours`,
+  `GET /api/v1/rumours/{id}`. **Milestone 1.5** enriched both: responses
+  now nest `player`/`to_club`/`from_club` objects (id, name, crest_url)
+  instead of raw `*_id` UUIDs, and the detail endpoint's `events` array
+  nests each event's `source` (id, name) and `article` (id, url, title).
+  `store.ListRumours`/`GetRumourByID` now do the JOINs (`RumourFeedItem`/
+  `RumourEventItem` in `internal/store/rumours.go`); `internal/api/views.go`
+  maps them to the nested JSON shape. Smoke-tested live against Postgres,
+  including a real rumour created through the actual `cluster.Upsert` path
+  (not a raw SQL insert) against a live-ingested article, to prove the full
+  response shape end-to-end — via a throwaway, uncommitted `cmd/seedtest`
+  program, deleted after use.
 - `cmd/ingest`: full poller — tickers, fetches each source's feed via
   gofeed, stores articles deduped on URL (`ON CONFLICT (url) DO NOTHING`).
   **Milestone 1.2** populated real, verified-reachable RSS feed URLs for 8
@@ -147,28 +157,68 @@ Milestone 0 delivered a working, verified-end-to-end skeleton:
      `EXTRACT_API_KEY`, running `cmd/extract` for real is the one
      remaining gap** — do that before trusting the Anthropic integration
      in production.
-- Rumour upsert/clustering: **not implemented** — Milestone 1.4. Nothing
-  currently turns an article's extraction into a rumour. Because no live
-  model call has happened yet, there's no real `articles.extraction` data
-  to upsert from either — Milestone 1.4 will need to seed some synthetic
-  extraction JSON (or a fake `extract.Extractor`) to test against.
-- Source reliability: schema field exists (`sources.reliability_score`,
-  default 50.00) but nothing updates it yet — Milestone 1.6.
+- Rumour upsert/clustering: **Milestone 1.4** implemented `internal/cluster`
+  (`Clusterer.Upsert`) — resolves player/to-club/from-club names to IDs via
+  new `store.GetOrCreateClub`/`GetOrCreatePlayer` (case-insensitive exact
+  match, `ON CONFLICT (lower(name)) DO UPDATE ... RETURNING id`; **not**
+  fuzzy/alias matching — "Man United" and "Manchester United" would create
+  two separate club rows), then `store.UpsertRumour` on
+  (player_id, to_club_id, transfer_window) and `store.InsertRumourEvent`
+  (idempotent per (rumour_id, article_id)). Status only ever moves forward
+  (`models.RumourStatus.IsForwardTransition`); the fee range widens to span
+  every reported figure via Postgres `LEAST`/`GREATEST` (NULL-ignoring).
+  Migration 0003 makes `players.name` case-insensitively unique (players
+  didn't have that constraint before — needed for reliable get-or-create;
+  known limitation: two distinct real players sharing an exact name would
+  incorrectly merge, acceptable for MVP). `cmd/extract` now calls
+  `Clusterer.Upsert` after every successful extraction, before marking the
+  article processed. **Not wrapped in a transaction** — safe under
+  `cmd/extract`'s current single-process sequential-batch execution, but
+  would race if extraction were ever parallelized (see the comment on
+  `UpsertRumour`).
+- Source reliability: **Milestone 1.6** implemented it. `store.UpsertRumour`
+  now returns `justResolved bool` — true exactly once, on the upsert call
+  that first moves a rumour from a non-terminal status into `confirmed`/
+  `collapsed` (every later report on an already-terminal rumour gets
+  `justResolved=false`, since `IsForwardTransition` already refuses to
+  move a terminal status anywhere). `Clusterer.Upsert` inserts the
+  resolving article's own event first, then — only when `justResolved` —
+  calls new `store.NudgeSourceReliability(rumourID, delta)`, which bumps
+  `reliability_score` (clamped to [0, 100]) for every distinct source
+  with an event on that rumour: `+2` for confirmed, `-2` for collapsed
+  (`cluster.reliabilityNudge`). `RumourFeedItem` gained a `Credibility
+  *float64` field — the average `reliability_score` across a rumour's
+  contributing sources, computed via a correlated subquery in
+  `rumourFeedSelect` — exposed as `credibility` in both API responses
+  (`GET /api/v1/rumours` and `/rumours/{id}`), omitted if nil.
+  **Simplification, documented in the `reliabilityNudge` comment**: every
+  contributing source gets the same nudge regardless of which status they
+  personally reported (e.g. a source that only ever reported "rumoured"
+  still gets the "confirmed" credit if the deal later goes through) — this
+  doesn't distinguish "accurately reported a deal that fell through" from
+  "got it wrong" on a collapsed rumour. Real-world nuance considered out
+  of scope for MVP.
 
 ### Known follow-ups / risk areas
 
-- `Rumour.FeeMinEUR/FeeMaxEUR/Confidence` and `RumourEvent` equivalents are
-  scanned directly from Postgres `NUMERIC` into `*float64` via pgx v5's
-  default conversion. This compiles and is a common pattern, but hasn't
-  been exercised against real data yet (no rumours exist until Milestone
-  1.4). If pgx scan errors show up once rumours are populated, switch to
-  `pgtype.Numeric` and convert explicitly.
-- `RumourStatus` (a Go string-kind type) is scanned directly from the
-  Postgres `rumour_status` enum without explicit `pgtype` registration,
-  relying on pgx v5's text-format fallback for unregistered types. Same
-  caveat — not yet exercised with real rows.
-- `internal/api` has no test coverage yet (handlers are thin; store methods
-  are the part worth testing once there's real data flowing through them).
+- Club/player name matching in `internal/cluster` is exact (case-
+  insensitive) string matching, not fuzzy/alias resolution. A model
+  returning "Spurs" vs. "Tottenham Hotspur", or "Man Utd" vs. "Manchester
+  United", will create separate club rows instead of clustering correctly.
+  Worth a proper alias table if this turns out to matter in practice once
+  real extractions are running.
+- `internal/api` view-mapping (`newRumourView`/`newRumourEventView`) has
+  unit test coverage (`internal/api/views_test.go`, Milestone 1.5); the
+  HTTP handlers themselves (`handleListRumours`/`handleGetRumour`) do not
+  — still only smoke-tested manually. `store.ListRumours`/`GetRumourByID`
+  have real coverage via `internal/store/integration_test.go` (Milestone
+  1.4), which also resolved the pgx NUMERIC/enum scanning risks noted in
+  earlier versions of this doc.
+- `crest_url` is never populated anywhere yet (seed data doesn't set it,
+  nothing writes it) — the enriched API responses correctly omit it
+  (`omitempty`) but every club's crest is effectively unset today. Not a
+  bug, just unimplemented: nothing in Milestone 1's scope populates crest
+  URLs.
 
 ## Working practices for this project
 
@@ -179,6 +229,13 @@ Milestone 0 delivered a working, verified-end-to-end skeleton:
 - Before every commit: `go build ./...` and `go vet ./...` must pass. Add
   tests where it makes sense (extraction parsing, dedup logic, status
   transition logic).
+- Two testing styles are in use, depending on what's being verified:
+  business logic gets a fake-backed unit test (see `internal/ingest`,
+  `internal/cluster` — a small interface + in-memory fake, no network/DB);
+  actual SQL correctness gets a real-Postgres integration test guarded by
+  `t.Skip` when `DATABASE_URL` is unset (see
+  `internal/store/integration_test.go`), so `go test ./...` still passes
+  without a database running.
 - PRs are left open for the project owner to review — do not self-merge.
 
 ## Milestone 1 task list and issue numbers
@@ -191,6 +248,14 @@ create` calls) and was re-filed as #7 afterward.
 |-----------|-------|--------|------|
 | 1.2 | #7 | done | Real RSS feed URLs for seeded sources; verify `cmd/ingest` stores articles end-to-end. |
 | 1.3 | #2 | done | LLM extraction worker (`cmd/extract`): pull unprocessed articles, call the model with `extract.SystemPrompt`, parse the JSON, mark articles processed. |
-| 1.4 | #3 | pending | Rumour upsert + clustering: map extracted club/player names to IDs (create if missing), upsert on (player_id, to_club_id, transfer_window), append a `rumour_event`, handle status transitions and fee-range updates. |
-| 1.5 | #4 | pending | Flesh out the API: full event timeline + player/club enrichment (names, crests) on `GET /api/v1/rumours/{id}` and the feed response. |
-| 1.6 | #5 | pending | Source-reliability scoring: nudge source reliability when a rumour resolves (confirmed/collapsed); expose a per-rumour credibility indicator. |
+| 1.4 | #3 | done | Rumour upsert + clustering: map extracted club/player names to IDs (create if missing), upsert on (player_id, to_club_id, transfer_window), append a `rumour_event`, handle status transitions and fee-range updates. |
+| 1.5 | #4 | done | Flesh out the API: full event timeline + player/club enrichment (names, crests) on `GET /api/v1/rumours/{id}` and the feed response. |
+| 1.6 | #5 | done | Source-reliability scoring: nudge source reliability when a rumour resolves (confirmed/collapsed); expose a per-rumour credibility indicator. |
+
+All of Milestone 1 is now implemented and stacked as PRs #6 (Milestone 0),
+#8, #9, #10, #11, and #12 (Milestones 1.2 through 1.6, in order — #7 is an
+issue number, not a PR), each based on the previous, waiting for
+review/merge in order. Next: pick a Milestone 2 (nothing defined yet as of
+this writing) — e.g. the prediction game, premium subscriptions, or web
+frontend work in `transfer-scout-web` (currently just an auto-generated
+README, same as this repo was before Milestone 0).
