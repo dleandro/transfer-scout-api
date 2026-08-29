@@ -44,7 +44,7 @@ backend, priority) and `transfer-scout-web` (Next.js frontend, later).
 - PL only for the MVP. Current window: `summer-2026` (`TRANSFER_WINDOW` env
   var, defaults to this in `internal/config`).
 
-## Current status (as of Milestone 1.5)
+## Current status (as of Milestone 1.6 — Milestone 1 complete)
 
 **2026-07-28: the api repo arrived on GitHub with no scaffolding** — just an
 auto-generated README and one "Initial commit", despite the original brief
@@ -136,8 +136,28 @@ Milestone 0 delivered a working, verified-end-to-end skeleton:
   `cmd/extract`'s current single-process sequential-batch execution, but
   would race if extraction were ever parallelized (see the comment on
   `UpsertRumour`).
-- Source reliability: schema field exists (`sources.reliability_score`,
-  default 50.00) but nothing updates it yet — Milestone 1.6.
+- Source reliability: **Milestone 1.6** implemented it. `store.UpsertRumour`
+  now returns `justResolved bool` — true exactly once, on the upsert call
+  that first moves a rumour from a non-terminal status into `confirmed`/
+  `collapsed` (every later report on an already-terminal rumour gets
+  `justResolved=false`, since `IsForwardTransition` already refuses to
+  move a terminal status anywhere). `Clusterer.Upsert` inserts the
+  resolving article's own event first, then — only when `justResolved` —
+  calls new `store.NudgeSourceReliability(rumourID, delta)`, which bumps
+  `reliability_score` (clamped to [0, 100]) for every distinct source
+  with an event on that rumour: `+2` for confirmed, `-2` for collapsed
+  (`cluster.reliabilityNudge`). `RumourFeedItem` gained a `Credibility
+  *float64` field — the average `reliability_score` across a rumour's
+  contributing sources, computed via a correlated subquery in
+  `rumourFeedSelect` — exposed as `credibility` in both API responses
+  (`GET /api/v1/rumours` and `/rumours/{id}`), omitted if nil.
+  **Simplification, documented in the `reliabilityNudge` comment**: every
+  contributing source gets the same nudge regardless of which status they
+  personally reported (e.g. a source that only ever reported "rumoured"
+  still gets the "confirmed" credit if the deal later goes through) — this
+  doesn't distinguish "accurately reported a deal that fell through" from
+  "got it wrong" on a collapsed rumour. Real-world nuance considered out
+  of scope for MVP.
 
 ### Known follow-ups / risk areas
 
@@ -190,4 +210,12 @@ create` calls) and was re-filed as #7 afterward.
 | 1.3 | #2 | done | LLM extraction worker (`cmd/extract`): pull unprocessed articles, call the model with `extract.SystemPrompt`, parse the JSON, mark articles processed. |
 | 1.4 | #3 | done | Rumour upsert + clustering: map extracted club/player names to IDs (create if missing), upsert on (player_id, to_club_id, transfer_window), append a `rumour_event`, handle status transitions and fee-range updates. |
 | 1.5 | #4 | done | Flesh out the API: full event timeline + player/club enrichment (names, crests) on `GET /api/v1/rumours/{id}` and the feed response. |
-| 1.6 | #5 | pending | Source-reliability scoring: nudge source reliability when a rumour resolves (confirmed/collapsed); expose a per-rumour credibility indicator. |
+| 1.6 | #5 | done | Source-reliability scoring: nudge source reliability when a rumour resolves (confirmed/collapsed); expose a per-rumour credibility indicator. |
+
+All of Milestone 1 is now implemented and stacked as PRs #6 (Milestone 0),
+#8, #9, #10, #11, and #12 (Milestones 1.2 through 1.6, in order — #7 is an
+issue number, not a PR), each based on the previous, waiting for
+review/merge in order. Next: pick a Milestone 2 (nothing defined yet as of
+this writing) — e.g. the prediction game, premium subscriptions, or web
+frontend work in `transfer-scout-web` (currently just an auto-generated
+README, same as this repo was before Milestone 0).
