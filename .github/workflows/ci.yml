@@ -1,0 +1,56 @@
+name: CI
+
+# Triggers on pull_request regardless of base branch, not just against
+# main — this repo's PRs are stacked (a PR's base is often another
+# feature branch, not main), and main currently lags behind the stack
+# tip. See PRODUCTION_ROADMAP.md's "Ground state" section.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: transferscout
+          POSTGRES_PASSWORD: transferscout
+          POSTGRES_DB: transferscout
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U transferscout"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgres://transferscout:transferscout@localhost:5432/transferscout?sslmode=disable
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build
+        run: go build ./...
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Apply migrations
+        run: go run ./cmd/migrate up
+
+      - name: Test
+        run: go test ./...
+
+      # Drift-detector: catches a new binary/import breaking the image
+      # without anyone touching the Dockerfile directly.
+      - name: Docker build
+        run: docker build -t transfer-scout-api .
