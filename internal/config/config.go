@@ -5,16 +5,14 @@ package config
 import (
 	"fmt"
 	"os"
-	"time"
 )
 
 type Config struct {
-	DatabaseURL        string
-	APIPort            string
-	IngestPollInterval time.Duration
-	ExtractModel       string
-	ExtractAPIKey      string
-	TransferWindow     string
+	DatabaseURL    string
+	APIPort        string
+	ExtractModel   string
+	ExtractAPIKey  string
+	TransferWindow string
 }
 
 func Load() (Config, error) {
@@ -31,13 +29,6 @@ func Load() (Config, error) {
 	if cfg.DatabaseURL == "" {
 		return cfg, fmt.Errorf("config: DATABASE_URL is required")
 	}
-
-	pollIntervalStr := getEnv("INGEST_POLL_INTERVAL", "5m")
-	interval, err := time.ParseDuration(pollIntervalStr)
-	if err != nil {
-		return cfg, fmt.Errorf("config: invalid INGEST_POLL_INTERVAL %q: %w", pollIntervalStr, err)
-	}
-	cfg.IngestPollInterval = interval
 
 	return cfg, nil
 }

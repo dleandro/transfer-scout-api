@@ -21,10 +21,13 @@ backend, priority) and `transfer-scout-web` (Next.js frontend, later).
   pinned to `go 1.25.0` — matching the toolchain actually installed
   (1.25.3) rather than an artificially pinned older pgx. Flagged, not
   silently changed.
-- Three binaries: `cmd/api` (REST API), `cmd/ingest` (RSS poller on a
-  ticker), `cmd/extract` (LLM extraction worker — one-shot batch, not a
-  ticker loop; calls the Anthropic Messages API, see Milestone 1.3).
-  `cmd/migrate` is a fourth, dev-only binary wrapping golang-migrate for
+- Three binaries: `cmd/api` (REST API), `cmd/ingest` (RSS poller —
+  one-shot batch per invocation as of the production roadmap's Task 5.1;
+  originally an in-process ticker loop, changed so Cloud Scheduler can own
+  cadence by triggering a Cloud Run Job, see PRODUCTION_ROADMAP.md),
+  `cmd/extract` (LLM extraction worker — one-shot batch, not a ticker
+  loop; calls the Anthropic Messages API, see Milestone 1.3). `cmd/migrate`
+  is a fourth, dev-only binary wrapping golang-migrate for
   `make migrate-up`/`make migrate-down` — not part of the three application
   binaries.
 - Core entity is a "rumour": a long-lived thread UNIQUE per (player_id,
@@ -123,8 +126,11 @@ Milestone 0 delivered a working, verified-end-to-end skeleton:
   (not a raw SQL insert) against a live-ingested article, to prove the full
   response shape end-to-end — via a throwaway, uncommitted `cmd/seedtest`
   program, deleted after use.
-- `cmd/ingest`: full poller — tickers, fetches each source's feed via
-  gofeed, stores articles deduped on URL (`ON CONFLICT (url) DO NOTHING`).
+- `cmd/ingest`: fetches each source's feed via gofeed, stores articles
+  deduped on URL (`ON CONFLICT (url) DO NOTHING`). Originally an in-process
+  ticker loop; converted to one-shot-per-invocation by the production
+  roadmap's Task 5.1 so Cloud Scheduler can own cadence — see
+  PRODUCTION_ROADMAP.md.
   **Milestone 1.2** populated real, verified-reachable RSS feed URLs for 8
   of the 10 seeded sources (`seed/seed.sql`) — talkSPORT and The Athletic
   have no public feed (JS SPA / paywalled) and are left `NULL`. Verified
