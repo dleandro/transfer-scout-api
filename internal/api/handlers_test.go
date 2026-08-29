@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/dleandro/transfer-scout-api/internal/models"
+	"github.com/dleandro/transfer-scout-api/internal/store"
 )
 
 func TestParseIntParam(t *testing.T) {
@@ -49,11 +50,10 @@ func TestParseIntParam(t *testing.T) {
 	}
 }
 
-func TestHandleListRumours_EmptyResultIsNilSliceNotEmptyArray(t *testing.T) {
-	// Pins the documented quirk (see transfer-scout-web's CLAUDE.md): Go's
-	// json.Marshal renders a nil []models.Rumour as JSON `null`, not `[]`.
-	// The handler doesn't normalize this — API clients are expected to
-	// handle it, same as the existing web client does.
+func TestHandleListRumours_EmptyResultIsEmptyArrayNotNull(t *testing.T) {
+	// The handler builds views via make([]rumourView, len(items)), which is
+	// a non-nil empty slice even when items is nil — so an empty page
+	// renders as `[]`, not `null` (unlike a bare nil-slice marshal).
 	fs := &fakeStore{rumours: nil, hasMore: false}
 	srv := NewServer(fs, "test-secret", nil)
 
@@ -63,8 +63,8 @@ func TestHandleListRumours_EmptyResultIsNilSliceNotEmptyArray(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
 	}
-	if got := w.Body.String(); got != `{"has_more":false,"rumours":null}`+"\n" {
-		t.Errorf("body = %q, want a literal null rumours field", got)
+	if got := w.Body.String(); got != `{"has_more":false,"rumours":[]}`+"\n" {
+		t.Errorf("body = %q, want an empty rumours array", got)
 	}
 }
 
@@ -124,8 +124,17 @@ func withURLParam(r *http.Request, key, value string) *http.Request {
 func TestHandleGetRumour_Success(t *testing.T) {
 	id := uuid.New()
 	fs := &fakeStore{
-		rumour: &models.Rumour{ID: id, Status: models.StatusTalks},
-		events: []models.RumourEvent{{ID: uuid.New(), RumourID: id}},
+		rumour: &store.RumourFeedItem{
+			Rumour:     models.Rumour{ID: id, Status: models.StatusTalks},
+			PlayerName: "Test Player",
+			ToClubName: "Test Club",
+		},
+		events: []store.RumourEventItem{{
+			RumourEvent:  models.RumourEvent{ID: uuid.New(), RumourID: id},
+			SourceName:   "Test Source",
+			ArticleURL:   "https://example.com/article",
+			ArticleTitle: "Test Article",
+		}},
 	}
 	srv := NewServer(fs, "test-secret", nil)
 
@@ -139,15 +148,19 @@ func TestHandleGetRumour_Success(t *testing.T) {
 	if fs.gotID != id {
 		t.Errorf("store called with id=%v, want %v", fs.gotID, id)
 	}
+	// rumourDetailView embeds rumourView (id, player, to_club, ... are
+	// top-level fields), plus a sibling "events" array.
 	var body struct {
-		Rumour models.Rumour        `json:"rumour"`
-		Events []models.RumourEvent `json:"events"`
+		ID     uuid.UUID `json:"id"`
+		Events []struct {
+			ID uuid.UUID `json:"id"`
+		} `json:"events"`
 	}
 	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
 		t.Fatalf("decode body: %v", err)
 	}
-	if body.Rumour.ID != id || len(body.Events) != 1 {
-		t.Errorf("body = %+v, want rumour.id=%v and 1 event", body, id)
+	if body.ID != id || len(body.Events) != 1 {
+		t.Errorf("body = %+v, want id=%v and 1 event", body, id)
 	}
 }
 

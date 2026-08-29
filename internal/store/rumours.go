@@ -93,6 +93,15 @@ func (s *Store) ListRumours(ctx context.Context, limit, offset int) (items []Rum
 	return items, hasMore, nil
 }
 
+// RumourExists reports whether a rumour with this id exists. Used by
+// handlers that need a cheap existence check without fetching the full
+// rumour + event timeline — e.g. handleListComments's 404 path.
+func (s *Store) RumourExists(ctx context.Context, id uuid.UUID) (bool, error) {
+	var exists bool
+	err := s.Pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM rumours WHERE id = $1)`, id).Scan(&exists)
+	return exists, err
+}
+
 // RumourEventItem is a rumour_event joined with the source name and
 // article URL/title needed to render a timeline entry.
 type RumourEventItem struct {
