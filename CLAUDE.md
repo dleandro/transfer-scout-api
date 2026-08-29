@@ -44,7 +44,7 @@ backend, priority) and `transfer-scout-web` (Next.js frontend, later).
 - PL only for the MVP. Current window: `summer-2026` (`TRANSFER_WINDOW` env
   var, defaults to this in `internal/config`).
 
-## Current status (as of Milestone 1.3)
+## Current status (as of Milestone 1.4)
 
 **2026-07-28: the api repo arrived on GitHub with no scaffolding** — just an
 auto-generated README and one "Initial commit", despite the original brief
@@ -108,28 +108,42 @@ Milestone 0 delivered a working, verified-end-to-end skeleton:
      `EXTRACT_API_KEY`, running `cmd/extract` for real is the one
      remaining gap** — do that before trusting the Anthropic integration
      in production.
-- Rumour upsert/clustering: **not implemented** — Milestone 1.4. Nothing
-  currently turns an article's extraction into a rumour. Because no live
-  model call has happened yet, there's no real `articles.extraction` data
-  to upsert from either — Milestone 1.4 will need to seed some synthetic
-  extraction JSON (or a fake `extract.Extractor`) to test against.
+- Rumour upsert/clustering: **Milestone 1.4** implemented `internal/cluster`
+  (`Clusterer.Upsert`) — resolves player/to-club/from-club names to IDs via
+  new `store.GetOrCreateClub`/`GetOrCreatePlayer` (case-insensitive exact
+  match, `ON CONFLICT (lower(name)) DO UPDATE ... RETURNING id`; **not**
+  fuzzy/alias matching — "Man United" and "Manchester United" would create
+  two separate club rows), then `store.UpsertRumour` on
+  (player_id, to_club_id, transfer_window) and `store.InsertRumourEvent`
+  (idempotent per (rumour_id, article_id)). Status only ever moves forward
+  (`models.RumourStatus.IsForwardTransition`); the fee range widens to span
+  every reported figure via Postgres `LEAST`/`GREATEST` (NULL-ignoring).
+  Migration 0003 makes `players.name` case-insensitively unique (players
+  didn't have that constraint before — needed for reliable get-or-create;
+  known limitation: two distinct real players sharing an exact name would
+  incorrectly merge, acceptable for MVP). `cmd/extract` now calls
+  `Clusterer.Upsert` after every successful extraction, before marking the
+  article processed. **Not wrapped in a transaction** — safe under
+  `cmd/extract`'s current single-process sequential-batch execution, but
+  would race if extraction were ever parallelized (see the comment on
+  `UpsertRumour`).
 - Source reliability: schema field exists (`sources.reliability_score`,
   default 50.00) but nothing updates it yet — Milestone 1.6.
 
 ### Known follow-ups / risk areas
 
-- `Rumour.FeeMinEUR/FeeMaxEUR/Confidence` and `RumourEvent` equivalents are
-  scanned directly from Postgres `NUMERIC` into `*float64` via pgx v5's
-  default conversion. This compiles and is a common pattern, but hasn't
-  been exercised against real data yet (no rumours exist until Milestone
-  1.4). If pgx scan errors show up once rumours are populated, switch to
-  `pgtype.Numeric` and convert explicitly.
-- `RumourStatus` (a Go string-kind type) is scanned directly from the
-  Postgres `rumour_status` enum without explicit `pgtype` registration,
-  relying on pgx v5's text-format fallback for unregistered types. Same
-  caveat — not yet exercised with real rows.
-- `internal/api` has no test coverage yet (handlers are thin; store methods
-  are the part worth testing once there's real data flowing through them).
+- Club/player name matching in `internal/cluster` is exact (case-
+  insensitive) string matching, not fuzzy/alias resolution. A model
+  returning "Spurs" vs. "Tottenham Hotspur", or "Man Utd" vs. "Manchester
+  United", will create separate club rows instead of clustering correctly.
+  Worth a proper alias table if this turns out to matter in practice once
+  real extractions are running.
+- `internal/api` has no test coverage yet (handlers are thin; the parts
+  worth testing — `store.ListRumours`/`GetRumourByID` — now have real
+  coverage via `internal/store/integration_test.go`, added in Milestone
+  1.4, which also **resolved** the two pgx NUMERIC/enum scanning risks
+  noted in earlier versions of this doc — both scan correctly against a
+  real Postgres instance).
 
 ## Working practices for this project
 
@@ -140,6 +154,13 @@ Milestone 0 delivered a working, verified-end-to-end skeleton:
 - Before every commit: `go build ./...` and `go vet ./...` must pass. Add
   tests where it makes sense (extraction parsing, dedup logic, status
   transition logic).
+- Two testing styles are in use, depending on what's being verified:
+  business logic gets a fake-backed unit test (see `internal/ingest`,
+  `internal/cluster` — a small interface + in-memory fake, no network/DB);
+  actual SQL correctness gets a real-Postgres integration test guarded by
+  `t.Skip` when `DATABASE_URL` is unset (see
+  `internal/store/integration_test.go`), so `go test ./...` still passes
+  without a database running.
 - PRs are left open for the project owner to review — do not self-merge.
 
 ## Milestone 1 task list and issue numbers
@@ -152,6 +173,6 @@ create` calls) and was re-filed as #7 afterward.
 |-----------|-------|--------|------|
 | 1.2 | #7 | done | Real RSS feed URLs for seeded sources; verify `cmd/ingest` stores articles end-to-end. |
 | 1.3 | #2 | done | LLM extraction worker (`cmd/extract`): pull unprocessed articles, call the model with `extract.SystemPrompt`, parse the JSON, mark articles processed. |
-| 1.4 | #3 | pending | Rumour upsert + clustering: map extracted club/player names to IDs (create if missing), upsert on (player_id, to_club_id, transfer_window), append a `rumour_event`, handle status transitions and fee-range updates. |
+| 1.4 | #3 | done | Rumour upsert + clustering: map extracted club/player names to IDs (create if missing), upsert on (player_id, to_club_id, transfer_window), append a `rumour_event`, handle status transitions and fee-range updates. |
 | 1.5 | #4 | pending | Flesh out the API: full event timeline + player/club enrichment (names, crests) on `GET /api/v1/rumours/{id}` and the feed response. |
 | 1.6 | #5 | pending | Source-reliability scoring: nudge source reliability when a rumour resolves (confirmed/collapsed); expose a per-rumour credibility indicator. |
