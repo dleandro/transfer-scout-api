@@ -55,7 +55,7 @@ func TestHandleListRumours_EmptyResultIsNilSliceNotEmptyArray(t *testing.T) {
 	// The handler doesn't normalize this — API clients are expected to
 	// handle it, same as the existing web client does.
 	fs := &fakeStore{rumours: nil, hasMore: false}
-	srv := NewServer(fs)
+	srv := NewServer(fs, "test-secret", nil)
 
 	w := httptest.NewRecorder()
 	srv.handleListRumours(w, httptest.NewRequest(http.MethodGet, "/api/v1/rumours", nil))
@@ -85,7 +85,7 @@ func TestHandleListRumours_PaginationClampingReachesTheStore(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			fs := &fakeStore{}
-			srv := NewServer(fs)
+			srv := NewServer(fs, "test-secret", nil)
 
 			w := httptest.NewRecorder()
 			srv.handleListRumours(w, httptest.NewRequest(http.MethodGet, "/api/v1/rumours?"+tc.query, nil))
@@ -103,7 +103,7 @@ func TestHandleListRumours_PaginationClampingReachesTheStore(t *testing.T) {
 
 func TestHandleListRumours_StoreErrorReturns500(t *testing.T) {
 	fs := &fakeStore{listErr: errStoreUnavailable}
-	srv := NewServer(fs)
+	srv := NewServer(fs, "test-secret", nil)
 
 	w := httptest.NewRecorder()
 	srv.handleListRumours(w, httptest.NewRequest(http.MethodGet, "/api/v1/rumours", nil))
@@ -127,7 +127,7 @@ func TestHandleGetRumour_Success(t *testing.T) {
 		rumour: &models.Rumour{ID: id, Status: models.StatusTalks},
 		events: []models.RumourEvent{{ID: uuid.New(), RumourID: id}},
 	}
-	srv := NewServer(fs)
+	srv := NewServer(fs, "test-secret", nil)
 
 	req := withURLParam(httptest.NewRequest(http.MethodGet, "/api/v1/rumours/"+id.String(), nil), "id", id.String())
 	w := httptest.NewRecorder()
@@ -152,7 +152,7 @@ func TestHandleGetRumour_Success(t *testing.T) {
 }
 
 func TestHandleGetRumour_MalformedUUIDReturns400(t *testing.T) {
-	srv := NewServer(&fakeStore{})
+	srv := NewServer(&fakeStore{}, "test-secret", nil)
 
 	req := withURLParam(httptest.NewRequest(http.MethodGet, "/api/v1/rumours/not-a-uuid", nil), "id", "not-a-uuid")
 	w := httptest.NewRecorder()
@@ -166,7 +166,7 @@ func TestHandleGetRumour_MalformedUUIDReturns400(t *testing.T) {
 func TestHandleGetRumour_NotFoundReturns404(t *testing.T) {
 	id := uuid.New()
 	fs := &fakeStore{getErr: errStoreUnavailable}
-	srv := NewServer(fs)
+	srv := NewServer(fs, "test-secret", nil)
 
 	req := withURLParam(httptest.NewRequest(http.MethodGet, "/api/v1/rumours/"+id.String(), nil), "id", id.String())
 	w := httptest.NewRecorder()
