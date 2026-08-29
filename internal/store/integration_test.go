@@ -90,23 +90,29 @@ func TestIntegration_UpsertRumour_ClustersStatusForwardOnlyAndWidensFeeRange(t *
 	}
 
 	fee1min, fee1max := 20_000_000.0, 30_000_000.0
-	r1, err := s.UpsertRumour(ctx, store.UpsertRumourParams{
+	r1, resolved1, err := s.UpsertRumour(ctx, store.UpsertRumourParams{
 		PlayerID: playerID, ToClubID: toClubID, TransferWindow: "summer-2026",
 		Status: models.StatusAdvanced, FeeMinEUR: &fee1min, FeeMaxEUR: &fee1max,
 	})
 	if err != nil {
 		t.Fatalf("first upsert: %v", err)
 	}
+	if resolved1 {
+		t.Error("expected justResolved=false for a non-terminal status")
+	}
 
 	// A regression: "talks" after "advanced" should not roll the status
 	// back, but the fee range should still widen.
 	fee2min, fee2max := 15_000_000.0, 25_000_000.0
-	r2, err := s.UpsertRumour(ctx, store.UpsertRumourParams{
+	r2, resolved2, err := s.UpsertRumour(ctx, store.UpsertRumourParams{
 		PlayerID: playerID, ToClubID: toClubID, TransferWindow: "summer-2026",
 		Status: models.StatusTalks, FeeMinEUR: &fee2min, FeeMaxEUR: &fee2max,
 	})
 	if err != nil {
 		t.Fatalf("second upsert: %v", err)
+	}
+	if resolved2 {
+		t.Error("expected justResolved=false when status doesn't move to a terminal state")
 	}
 
 	if r1.ID != r2.ID {
@@ -143,11 +149,91 @@ func TestIntegration_UpsertRumour_ClustersStatusForwardOnlyAndWidensFeeRange(t *
 		t.Fatalf("insert rumour event: %v", err)
 	}
 
-	_, events, err := s.GetRumourByID(ctx, r2.ID)
+	item, events, err := s.GetRumourByID(ctx, r2.ID)
 	if err != nil {
 		t.Fatalf("get rumour by id: %v", err)
 	}
 	if len(events) != 1 {
 		t.Fatalf("got %d events, want 1", len(events))
+	}
+	if item.Credibility == nil {
+		t.Error("expected credibility to be non-nil once the rumour has a contributing source")
+	}
+}
+
+func TestIntegration_NudgeSourceReliability_ChangesScoreAndCredibility(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	sources, err := s.ListSources(ctx)
+	if err != nil || len(sources) == 0 {
+		t.Fatalf("list sources: %v (need at least one seeded source)", err)
+	}
+	source := sources[0]
+
+	playerID, err := s.GetOrCreatePlayer(ctx, uniqueName("Integration Test Player"))
+	if err != nil {
+		t.Fatalf("get or create player: %v", err)
+	}
+	toClubID, err := s.GetOrCreateClub(ctx, uniqueName("Integration Test Club"))
+	if err != nil {
+		t.Fatalf("get or create club: %v", err)
+	}
+	rumour, _, err := s.UpsertRumour(ctx, store.UpsertRumourParams{
+		PlayerID: playerID, ToClubID: toClubID, TransferWindow: "summer-2026",
+		Status: models.StatusRumoured,
+	})
+	if err != nil {
+		t.Fatalf("upsert rumour: %v", err)
+	}
+	articleID, _, err := s.InsertArticle(ctx, models.Article{
+		SourceID: source.ID,
+		URL:      "https://example.com/integration-test/" + uuid.NewString(),
+		Title:    "Integration test article",
+	})
+	if err != nil {
+		t.Fatalf("insert article: %v", err)
+	}
+	if err := s.InsertRumourEvent(ctx, store.RumourEventParams{
+		RumourID: rumour.ID, ArticleID: articleID, SourceID: source.ID, Status: models.StatusRumoured,
+	}); err != nil {
+		t.Fatalf("insert rumour event: %v", err)
+	}
+
+	before, err := s.ListSources(ctx)
+	if err != nil {
+		t.Fatalf("list sources: %v", err)
+	}
+	var scoreBefore float64
+	for _, src := range before {
+		if src.ID == source.ID {
+			scoreBefore = src.ReliabilityScore
+		}
+	}
+
+	if err := s.NudgeSourceReliability(ctx, rumour.ID, 2.0); err != nil {
+		t.Fatalf("nudge source reliability: %v", err)
+	}
+
+	after, err := s.ListSources(ctx)
+	if err != nil {
+		t.Fatalf("list sources: %v", err)
+	}
+	var scoreAfter float64
+	for _, src := range after {
+		if src.ID == source.ID {
+			scoreAfter = src.ReliabilityScore
+		}
+	}
+	if scoreAfter != scoreBefore+2.0 {
+		t.Errorf("reliability_score: got %v, want %v", scoreAfter, scoreBefore+2.0)
+	}
+
+	item, _, err := s.GetRumourByID(ctx, rumour.ID)
+	if err != nil {
+		t.Fatalf("get rumour by id: %v", err)
+	}
+	if item.Credibility == nil || *item.Credibility != scoreAfter {
+		t.Errorf("credibility: got %v, want %v (single contributing source's score)", item.Credibility, scoreAfter)
 	}
 }

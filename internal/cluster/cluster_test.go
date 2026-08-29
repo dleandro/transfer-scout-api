@@ -17,17 +17,25 @@ import (
 // forward-only status, widening fee range) to exercise Clusterer's
 // orchestration logic without a real database.
 type fakeStore struct {
-	clubs   map[string]uuid.UUID
-	players map[string]uuid.UUID
-	rumours map[string]models.Rumour
-	events  []store.RumourEventParams
+	clubs       map[string]uuid.UUID
+	players     map[string]uuid.UUID
+	rumours     map[string]models.Rumour
+	events      []store.RumourEventParams
+	reliability map[uuid.UUID]float64 // sourceID -> reliability_score, only tracked once a source appears in an event
+	nudges      []nudgeCall
+}
+
+type nudgeCall struct {
+	rumourID uuid.UUID
+	delta    float64
 }
 
 func newFakeStore() *fakeStore {
 	return &fakeStore{
-		clubs:   map[string]uuid.UUID{},
-		players: map[string]uuid.UUID{},
-		rumours: map[string]models.Rumour{},
+		clubs:       map[string]uuid.UUID{},
+		players:     map[string]uuid.UUID{},
+		rumours:     map[string]models.Rumour{},
+		reliability: map[uuid.UUID]float64{},
 	}
 }
 
@@ -53,7 +61,7 @@ func rumourKey(playerID, toClubID uuid.UUID, window string) string {
 	return playerID.String() + "|" + toClubID.String() + "|" + window
 }
 
-func (f *fakeStore) UpsertRumour(ctx context.Context, p store.UpsertRumourParams) (models.Rumour, error) {
+func (f *fakeStore) UpsertRumour(ctx context.Context, p store.UpsertRumourParams) (models.Rumour, bool, error) {
 	key := rumourKey(p.PlayerID, p.ToClubID, p.TransferWindow)
 	r := models.Rumour{
 		ID:             uuid.New(),
@@ -68,8 +76,10 @@ func (f *fakeStore) UpsertRumour(ctx context.Context, p store.UpsertRumourParams
 		Confidence:     p.Confidence,
 	}
 
+	wasTerminal := false
 	if existing, ok := f.rumours[key]; ok {
 		r.ID = existing.ID
+		wasTerminal = existing.Status.IsTerminal()
 		if !existing.Status.IsForwardTransition(p.Status) {
 			r.Status = existing.Status
 		}
@@ -81,11 +91,32 @@ func (f *fakeStore) UpsertRumour(ctx context.Context, p store.UpsertRumourParams
 	}
 
 	f.rumours[key] = r
-	return r, nil
+	return r, !wasTerminal && r.Status.IsTerminal(), nil
 }
 
 func (f *fakeStore) InsertRumourEvent(ctx context.Context, p store.RumourEventParams) error {
 	f.events = append(f.events, p)
+	if _, ok := f.reliability[p.SourceID]; !ok {
+		f.reliability[p.SourceID] = 50.0
+	}
+	return nil
+}
+
+func (f *fakeStore) NudgeSourceReliability(ctx context.Context, rumourID uuid.UUID, delta float64) error {
+	f.nudges = append(f.nudges, nudgeCall{rumourID: rumourID, delta: delta})
+	for _, ev := range f.events {
+		if ev.RumourID != rumourID {
+			continue
+		}
+		score := f.reliability[ev.SourceID] + delta
+		if score < 0 {
+			score = 0
+		}
+		if score > 100 {
+			score = 100
+		}
+		f.reliability[ev.SourceID] = score
+	}
 	return nil
 }
 
@@ -234,5 +265,86 @@ func TestClusterer_Upsert_ResolvesFromClub(t *testing.T) {
 	}
 	if len(fs.clubs) != 2 {
 		t.Fatalf("expected both from-club and to-club to be created, got %d clubs", len(fs.clubs))
+	}
+}
+
+func TestClusterer_Upsert_ConfirmedNudgesContributingSourcesUp(t *testing.T) {
+	fs := newFakeStore()
+	c := New(fs)
+	ctx := context.Background()
+
+	source1, source2 := uuid.New(), uuid.New()
+
+	result1 := extract.Result{PlayerName: "P", ToClubName: "C", Status: "talks", Confidence: 0.5}
+	if _, err := c.Upsert(ctx, uuid.New(), source1, result1, "summer-2026"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(fs.nudges) != 0 {
+		t.Fatalf("expected no nudge before resolution, got %d", len(fs.nudges))
+	}
+
+	result2 := extract.Result{PlayerName: "P", ToClubName: "C", Status: "confirmed", Confidence: 0.9}
+	if _, err := c.Upsert(ctx, uuid.New(), source2, result2, "summer-2026"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(fs.nudges) != 1 {
+		t.Fatalf("expected exactly one nudge on resolution, got %d", len(fs.nudges))
+	}
+	if fs.nudges[0].delta <= 0 {
+		t.Errorf("expected a positive nudge for a confirmed rumour, got delta %v", fs.nudges[0].delta)
+	}
+	if fs.reliability[source1] <= 50.0 || fs.reliability[source2] <= 50.0 {
+		t.Errorf("expected both contributing sources' reliability to increase, got source1=%v source2=%v",
+			fs.reliability[source1], fs.reliability[source2])
+	}
+}
+
+func TestClusterer_Upsert_CollapsedNudgesContributingSourcesDown(t *testing.T) {
+	fs := newFakeStore()
+	c := New(fs)
+	ctx := context.Background()
+
+	source := uuid.New()
+
+	result1 := extract.Result{PlayerName: "P", ToClubName: "C", Status: "talks", Confidence: 0.5}
+	if _, err := c.Upsert(ctx, uuid.New(), source, result1, "summer-2026"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	result2 := extract.Result{PlayerName: "P", ToClubName: "C", Status: "collapsed", Confidence: 0.9}
+	if _, err := c.Upsert(ctx, uuid.New(), source, result2, "summer-2026"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(fs.nudges) != 1 || fs.nudges[0].delta >= 0 {
+		t.Fatalf("expected exactly one negative nudge for a collapsed rumour, got %+v", fs.nudges)
+	}
+	if fs.reliability[source] >= 50.0 {
+		t.Errorf("expected the contributing source's reliability to decrease, got %v", fs.reliability[source])
+	}
+}
+
+func TestClusterer_Upsert_OnlyNudgesOnceEvenWithFurtherReportsAfterResolution(t *testing.T) {
+	fs := newFakeStore()
+	c := New(fs)
+	ctx := context.Background()
+
+	result1 := extract.Result{PlayerName: "P", ToClubName: "C", Status: "confirmed", Confidence: 0.9}
+	if _, err := c.Upsert(ctx, uuid.New(), uuid.New(), result1, "summer-2026"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(fs.nudges) != 1 {
+		t.Fatalf("expected one nudge after the first resolution, got %d", len(fs.nudges))
+	}
+
+	// A follow-up article re-reporting the same confirmed deal should not
+	// trigger a second nudge.
+	result2 := extract.Result{PlayerName: "P", ToClubName: "C", Status: "confirmed", Confidence: 0.95}
+	if _, err := c.Upsert(ctx, uuid.New(), uuid.New(), result2, "summer-2026"); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(fs.nudges) != 1 {
+		t.Fatalf("expected still only one nudge after a repeat confirmation, got %d", len(fs.nudges))
 	}
 }
