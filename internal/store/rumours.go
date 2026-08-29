@@ -60,25 +60,37 @@ func scanRumourFeedItem(row pgxScanner, item *RumourFeedItem) error {
 }
 
 // ListRumours returns the most recently updated rumours, enriched with
-// player/club names and crests.
-func (s *Store) ListRumours(ctx context.Context, limit, offset int) ([]RumourFeedItem, error) {
+// player/club names and crests, one page at a time (limit/offset), along
+// with whether a further page exists beyond this one.
+//
+// hasMore is computed by requesting limit+1 rows and trimming the extra
+// one if present, rather than a separate COUNT(*) query — cheaper, and
+// avoids a second round trip for every page.
+func (s *Store) ListRumours(ctx context.Context, limit, offset int) (items []RumourFeedItem, hasMore bool, err error) {
 	rows, err := s.Pool.Query(ctx, rumourFeedSelect+`
 		ORDER BY r.updated_at DESC
-		LIMIT $1 OFFSET $2`, limit, offset)
+		LIMIT $1 OFFSET $2`, limit+1, offset)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	defer rows.Close()
 
-	var items []RumourFeedItem
 	for rows.Next() {
 		var item RumourFeedItem
 		if err := scanRumourFeedItem(rows, &item); err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		items = append(items, item)
 	}
-	return items, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, false, err
+	}
+
+	if len(items) > limit {
+		items = items[:limit]
+		hasMore = true
+	}
+	return items, hasMore, nil
 }
 
 // RumourEventItem is a rumour_event joined with the source name and
