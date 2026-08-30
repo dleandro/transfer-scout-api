@@ -40,9 +40,11 @@ const mutationsRateLimit = 10 // requests per minute per user
 // in tests against a fake, without a real Postgres connection — mirrors
 // the pattern already used in internal/ingest.
 type Store interface {
-	ListRumours(ctx context.Context, limit, offset int) ([]store.RumourFeedItem, bool, error)
+	ListRumours(ctx context.Context, limit, offset int, filter store.RumourFilter) ([]store.RumourFeedItem, bool, error)
 	GetRumourByID(ctx context.Context, id uuid.UUID) (*store.RumourFeedItem, []store.RumourEventItem, error)
 	RumourExists(ctx context.Context, id uuid.UUID) (bool, error)
+	ListClubs(ctx context.Context) ([]models.Club, error)
+	ListPlayers(ctx context.Context) ([]models.Player, error)
 	Ping(ctx context.Context) error
 	UpsertUser(ctx context.Context, googleSub, email, displayName, avatarURL string) (*models.User, error)
 	CreateComment(ctx context.Context, rumourID, userID uuid.UUID, body string) (*models.Comment, error)
@@ -73,6 +75,8 @@ func (s *Server) Router() http.Handler {
 		r.Use(httprate.LimitByIP(rumoursRateLimit, time.Minute))
 		r.Get("/rumours", s.handleListRumours)
 		r.Get("/rumours/{id}", s.handleGetRumour)
+		r.Get("/clubs", s.handleListClubs)
+		r.Get("/players", s.handleListPlayers)
 		r.Get("/rumours/{id}/comments", s.handleListComments)
 		r.Post("/auth/google", s.handleGoogleAuth)
 

@@ -52,7 +52,7 @@ backend, priority) and `transfer-scout-web` (Next.js frontend, later).
 **2026-08-06: Milestone 3.2 (comments)** — built on top of Milestone
 3.1's `users`/auth stack. First user-generated-content table.
 
-- New `comments` table (migration `0004`), `rumour_id`/`user_id` both
+- New `comments` table (migration `0005`), `rumour_id`/`user_id` both
   `ON DELETE CASCADE`, a `CHECK (char_length(body) BETWEEN 1 AND 2000)`
   as defense-in-depth behind the handler's own validation.
 - `internal/store/comments.go`: `CreateComment` (a single `INSERT ...
@@ -93,7 +93,7 @@ Cloud-Run/Docker/CI readiness work), not on the Milestone 1.4–1.6 or 2.1
 branches, which also touch this repo. First identity/auth concept
 anywhere in this codebase.
 
-- New `users` table (migration `0003_add_users`), keyed on `google_sub`
+- New `users` table (migration `0004_add_users`), keyed on `google_sub`
   (Google's durable subject identifier) — `email` is intentionally NOT
   unique, since it isn't guaranteed permanently stable.
 - New `internal/auth` package: `GoogleVerifier` (wraps

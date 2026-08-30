@@ -10,6 +10,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+
+	"github.com/dleandro/transfer-scout-api/internal/store"
 )
 
 // healthzTimeout bounds how long the DB ping in handleHealth can take,
@@ -58,6 +60,11 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 // Response shape: {"rumours": [...], "has_more": bool}. has_more tells
 // the caller whether requesting the next offset would return more rows.
 // This replaces the previous bare-array response shape.
+//
+// Also accepts optional club_id/player_id UUID query params (Milestone
+// 3.4) to narrow the feed — see store.RumourFilter for matching rules.
+// A malformed UUID on either returns 400; absent params behave exactly
+// as before (no filtering).
 func (s *Server) handleListRumours(w http.ResponseWriter, r *http.Request) {
 	limit, err := parseIntParam(r, "limit", defaultRumoursLimit)
 	if err != nil {
@@ -80,7 +87,19 @@ func (s *Server) handleListRumours(w http.ResponseWriter, r *http.Request) {
 		offset = 0
 	}
 
-	items, hasMore, err := s.store.ListRumours(r.Context(), limit, offset)
+	clubID, err := parseUUIDParam(r, "club_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	playerID, err := parseUUIDParam(r, "player_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	filter := store.RumourFilter{ClubID: clubID, PlayerID: playerID}
+
+	items, hasMore, err := s.store.ListRumours(r.Context(), limit, offset, filter)
 	if err != nil {
 		http.Error(w, "failed to list rumours", http.StatusInternalServerError)
 		return
@@ -110,6 +129,44 @@ func parseIntParam(r *http.Request, name string, def int) (int, error) {
 		return 0, fmt.Errorf("invalid %s: must be an integer", name)
 	}
 	return v, nil
+}
+
+// parseUUIDParam parses the named query param as a UUID, returning
+// (nil, nil) if the param is absent — following parseIntParam's
+// absent/invalid/valid convention. An error is returned only when the
+// param is present but not a valid UUID.
+func parseUUIDParam(r *http.Request, name string) (*uuid.UUID, error) {
+	raw := r.URL.Query().Get(name)
+	if raw == "" {
+		return nil, nil
+	}
+	id, err := uuid.Parse(raw)
+	if err != nil {
+		return nil, fmt.Errorf("invalid %s: must be a UUID", name)
+	}
+	return &id, nil
+}
+
+// handleListClubs returns every club, alphabetically by name — for
+// populating a filter dropdown.
+func (s *Server) handleListClubs(w http.ResponseWriter, r *http.Request) {
+	clubs, err := s.store.ListClubs(r.Context())
+	if err != nil {
+		http.Error(w, "failed to list clubs", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"clubs": clubs})
+}
+
+// handleListPlayers returns every player, alphabetically by name — for
+// populating a filter dropdown.
+func (s *Server) handleListPlayers(w http.ResponseWriter, r *http.Request) {
+	players, err := s.store.ListPlayers(r.Context())
+	if err != nil {
+		http.Error(w, "failed to list players", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"players": players})
 }
 
 // handleGetRumour returns a single rumour, enriched with player/club

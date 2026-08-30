@@ -50,6 +50,160 @@ func TestParseIntParam(t *testing.T) {
 	}
 }
 
+func TestParseUUIDParam(t *testing.T) {
+	validID := uuid.New()
+
+	t.Run("absent param returns nil, nil", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodGet, "/api/v1/rumours", nil)
+		got, err := parseUUIDParam(r, "club_id")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got != nil {
+			t.Errorf("got %v, want nil", got)
+		}
+	})
+
+	t.Run("invalid UUID is an error", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodGet, "/api/v1/rumours?club_id=not-a-uuid", nil)
+		if _, err := parseUUIDParam(r, "club_id"); err == nil {
+			t.Fatal("expected an error, got none")
+		}
+	})
+
+	t.Run("valid UUID is parsed", func(t *testing.T) {
+		r := httptest.NewRequest(http.MethodGet, "/api/v1/rumours?club_id="+validID.String(), nil)
+		got, err := parseUUIDParam(r, "club_id")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got == nil || *got != validID {
+			t.Errorf("got %v, want %v", got, validID)
+		}
+	})
+}
+
+func TestHandleListRumours_FilterParamsReachTheStore(t *testing.T) {
+	clubID := uuid.New()
+	playerID := uuid.New()
+
+	t.Run("club_id and player_id are parsed and passed through", func(t *testing.T) {
+		fs := &fakeStore{}
+		srv := NewServer(fs, "test-secret", nil)
+
+		w := httptest.NewRecorder()
+		srv.handleListRumours(w, httptest.NewRequest(http.MethodGet,
+			"/api/v1/rumours?club_id="+clubID.String()+"&player_id="+playerID.String(), nil))
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+		}
+		if fs.gotFilter.ClubID == nil || *fs.gotFilter.ClubID != clubID {
+			t.Errorf("gotFilter.ClubID = %v, want %v", fs.gotFilter.ClubID, clubID)
+		}
+		if fs.gotFilter.PlayerID == nil || *fs.gotFilter.PlayerID != playerID {
+			t.Errorf("gotFilter.PlayerID = %v, want %v", fs.gotFilter.PlayerID, playerID)
+		}
+	})
+
+	t.Run("absent filter params stay nil (no regression)", func(t *testing.T) {
+		fs := &fakeStore{}
+		srv := NewServer(fs, "test-secret", nil)
+
+		w := httptest.NewRecorder()
+		srv.handleListRumours(w, httptest.NewRequest(http.MethodGet, "/api/v1/rumours", nil))
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+		}
+		if fs.gotFilter.ClubID != nil || fs.gotFilter.PlayerID != nil {
+			t.Errorf("gotFilter = %+v, want both nil", fs.gotFilter)
+		}
+	})
+
+	t.Run("malformed club_id returns 400", func(t *testing.T) {
+		srv := NewServer(&fakeStore{}, "test-secret", nil)
+		w := httptest.NewRecorder()
+		srv.handleListRumours(w, httptest.NewRequest(http.MethodGet, "/api/v1/rumours?club_id=not-a-uuid", nil))
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("status = %d, want %d", w.Code, http.StatusBadRequest)
+		}
+	})
+
+	t.Run("malformed player_id returns 400", func(t *testing.T) {
+		srv := NewServer(&fakeStore{}, "test-secret", nil)
+		w := httptest.NewRecorder()
+		srv.handleListRumours(w, httptest.NewRequest(http.MethodGet, "/api/v1/rumours?player_id=not-a-uuid", nil))
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("status = %d, want %d", w.Code, http.StatusBadRequest)
+		}
+	})
+}
+
+func TestHandleListClubs(t *testing.T) {
+	t.Run("returns clubs from the store", func(t *testing.T) {
+		fs := &fakeStore{clubs: []models.Club{{ID: uuid.New(), Name: "Arsenal"}}}
+		srv := NewServer(fs, "test-secret", nil)
+
+		w := httptest.NewRecorder()
+		srv.handleListClubs(w, httptest.NewRequest(http.MethodGet, "/api/v1/clubs", nil))
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+		}
+		var body struct {
+			Clubs []models.Club `json:"clubs"`
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+			t.Fatalf("decode body: %v", err)
+		}
+		if len(body.Clubs) != 1 || body.Clubs[0].Name != "Arsenal" {
+			t.Errorf("body = %+v, want one club named Arsenal", body)
+		}
+	})
+
+	t.Run("store error returns 500", func(t *testing.T) {
+		srv := NewServer(&fakeStore{clubsErr: errStoreUnavailable}, "test-secret", nil)
+		w := httptest.NewRecorder()
+		srv.handleListClubs(w, httptest.NewRequest(http.MethodGet, "/api/v1/clubs", nil))
+		if w.Code != http.StatusInternalServerError {
+			t.Fatalf("status = %d, want %d", w.Code, http.StatusInternalServerError)
+		}
+	})
+}
+
+func TestHandleListPlayers(t *testing.T) {
+	t.Run("returns players from the store", func(t *testing.T) {
+		fs := &fakeStore{players: []models.Player{{ID: uuid.New(), Name: "Test Player"}}}
+		srv := NewServer(fs, "test-secret", nil)
+
+		w := httptest.NewRecorder()
+		srv.handleListPlayers(w, httptest.NewRequest(http.MethodGet, "/api/v1/players", nil))
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+		}
+		var body struct {
+			Players []models.Player `json:"players"`
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+			t.Fatalf("decode body: %v", err)
+		}
+		if len(body.Players) != 1 || body.Players[0].Name != "Test Player" {
+			t.Errorf("body = %+v, want one player named Test Player", body)
+		}
+	})
+
+	t.Run("store error returns 500", func(t *testing.T) {
+		srv := NewServer(&fakeStore{playersErr: errStoreUnavailable}, "test-secret", nil)
+		w := httptest.NewRecorder()
+		srv.handleListPlayers(w, httptest.NewRequest(http.MethodGet, "/api/v1/players", nil))
+		if w.Code != http.StatusInternalServerError {
+			t.Fatalf("status = %d, want %d", w.Code, http.StatusInternalServerError)
+		}
+	})
+}
+
 func TestHandleListRumours_EmptyResultIsEmptyArrayNotNull(t *testing.T) {
 	// The handler builds views via make([]rumourView, len(items)), which is
 	// a non-nil empty slice even when items is nil — so an empty page
