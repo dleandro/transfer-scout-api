@@ -35,9 +35,15 @@ type fakeStore struct {
 	createdComment   *models.Comment
 	createCommentErr error
 
+	clubs      []models.Club
+	clubsErr   error
+	players    []models.Player
+	playersErr error
+
 	// captured args, so tests can assert what the handler actually passed
 	// through to the store (e.g. clamped pagination values).
 	gotLimit, gotOffset                 int
+	gotFilter                           store.RumourFilter
 	gotID                               uuid.UUID
 	gotCommentBody                      string
 	gotCommentUserID                    uuid.UUID
@@ -46,12 +52,26 @@ type fakeStore struct {
 
 var errStoreUnavailable = errors.New("store: unavailable")
 
-func (f *fakeStore) ListRumours(ctx context.Context, limit, offset int) ([]store.RumourFeedItem, bool, error) {
-	f.gotLimit, f.gotOffset = limit, offset
+func (f *fakeStore) ListRumours(ctx context.Context, limit, offset int, filter store.RumourFilter) ([]store.RumourFeedItem, bool, error) {
+	f.gotLimit, f.gotOffset, f.gotFilter = limit, offset, filter
 	if f.listErr != nil {
 		return nil, false, f.listErr
 	}
 	return f.rumours, f.hasMore, nil
+}
+
+func (f *fakeStore) ListClubs(ctx context.Context) ([]models.Club, error) {
+	if f.clubsErr != nil {
+		return nil, f.clubsErr
+	}
+	return f.clubs, nil
+}
+
+func (f *fakeStore) ListPlayers(ctx context.Context) ([]models.Player, error) {
+	if f.playersErr != nil {
+		return nil, f.playersErr
+	}
+	return f.players, nil
 }
 
 func (f *fakeStore) GetRumourByID(ctx context.Context, id uuid.UUID) (*store.RumourFeedItem, []store.RumourEventItem, error) {

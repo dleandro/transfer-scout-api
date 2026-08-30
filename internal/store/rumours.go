@@ -3,6 +3,8 @@ package store
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -59,17 +61,49 @@ func scanRumourFeedItem(row pgxScanner, item *RumourFeedItem) error {
 		&item.Credibility)
 }
 
-// ListRumours returns the most recently updated rumours, enriched with
-// player/club names and crests, one page at a time (limit/offset), along
-// with whether a further page exists beyond this one.
+// RumourFilter narrows ListRumours to rumours involving a specific club
+// and/or player. A nil field means "don't filter on this". ClubID matches
+// either side of the deal (to_club_id OR from_club_id) — a fan of a
+// selling club cares about outgoing rumours too. Non-nil fields combine
+// with AND.
+type RumourFilter struct {
+	ClubID   *uuid.UUID
+	PlayerID *uuid.UUID
+}
+
+// ListRumours returns the most recently updated rumours matching filter,
+// enriched with player/club names and crests, one page at a time
+// (limit/offset), along with whether a further page exists beyond this
+// one.
 //
 // hasMore is computed by requesting limit+1 rows and trimming the extra
 // one if present, rather than a separate COUNT(*) query — cheaper, and
 // avoids a second round trip for every page.
-func (s *Store) ListRumours(ctx context.Context, limit, offset int) (items []RumourFeedItem, hasMore bool, err error) {
-	rows, err := s.Pool.Query(ctx, rumourFeedSelect+`
+func (s *Store) ListRumours(ctx context.Context, limit, offset int, filter RumourFilter) (items []RumourFeedItem, hasMore bool, err error) {
+	var conditions []string
+	var args []any
+	argN := 1
+	if filter.ClubID != nil {
+		conditions = append(conditions, fmt.Sprintf("(r.to_club_id = $%d OR r.from_club_id = $%d)", argN, argN))
+		args = append(args, *filter.ClubID)
+		argN++
+	}
+	if filter.PlayerID != nil {
+		conditions = append(conditions, fmt.Sprintf("r.player_id = $%d", argN))
+		args = append(args, *filter.PlayerID)
+		argN++
+	}
+
+	query := rumourFeedSelect
+	if len(conditions) > 0 {
+		query += "\n\tWHERE " + strings.Join(conditions, " AND ")
+	}
+	query += fmt.Sprintf(`
 		ORDER BY r.updated_at DESC
-		LIMIT $1 OFFSET $2`, limit+1, offset)
+		LIMIT $%d OFFSET $%d`, argN, argN+1)
+	args = append(args, limit+1, offset)
+
+	rows, err := s.Pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, false, err
 	}

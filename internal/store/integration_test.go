@@ -82,7 +82,7 @@ func TestIntegration_ListRumours_HasMoreReflectsWhetherAFurtherPageExists(t *tes
 		t.Fatalf("expected at least 2 rumours to test pagination against, got %d", total)
 	}
 
-	all, hasMoreAll, err := s.ListRumours(ctx, total, 0)
+	all, hasMoreAll, err := s.ListRumours(ctx, total, 0, store.RumourFilter{})
 	if err != nil {
 		t.Fatalf("list rumours (limit covering every row): %v", err)
 	}
@@ -93,7 +93,7 @@ func TestIntegration_ListRumours_HasMoreReflectsWhetherAFurtherPageExists(t *tes
 		t.Error("expected has_more=false when limit covers every row")
 	}
 
-	partial, hasMorePartial, err := s.ListRumours(ctx, total-1, 0)
+	partial, hasMorePartial, err := s.ListRumours(ctx, total-1, 0, store.RumourFilter{})
 	if err != nil {
 		t.Fatalf("list rumours (limit one short): %v", err)
 	}
@@ -103,6 +103,106 @@ func TestIntegration_ListRumours_HasMoreReflectsWhetherAFurtherPageExists(t *tes
 	if !hasMorePartial {
 		t.Error("expected has_more=true when one row remains beyond the requested page")
 	}
+}
+
+// containsID reports whether items includes a rumour with the given id.
+func containsID(items []store.RumourFeedItem, id uuid.UUID) bool {
+	for _, item := range items {
+		if item.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
+// TestIntegration_ListRumours_FilterByClubAndPlayer proves ClubID matches
+// either side of the deal (to_club_id OR from_club_id), PlayerID matches
+// the player, and both combine with AND — against real Postgres, since
+// the WHERE clause is built dynamically per filter.
+func TestIntegration_ListRumours_FilterByClubAndPlayer(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	player1, err := s.GetOrCreatePlayer(ctx, uniqueName("Filter Test Player One"))
+	if err != nil {
+		t.Fatalf("get or create player1: %v", err)
+	}
+	player2, err := s.GetOrCreatePlayer(ctx, uniqueName("Filter Test Player Two"))
+	if err != nil {
+		t.Fatalf("get or create player2: %v", err)
+	}
+	club1, err := s.GetOrCreateClub(ctx, uniqueName("Filter Test Club One"))
+	if err != nil {
+		t.Fatalf("get or create club1: %v", err)
+	}
+	club2, err := s.GetOrCreateClub(ctx, uniqueName("Filter Test Club Two"))
+	if err != nil {
+		t.Fatalf("get or create club2: %v", err)
+	}
+
+	// A: player1 -> club1 (matches club1 on the "to" side, matches player1).
+	rumourA, _, err := s.UpsertRumour(ctx, store.UpsertRumourParams{
+		PlayerID: player1, ToClubID: club1, TransferWindow: uniqueName("window"),
+		Status: models.StatusRumoured,
+	})
+	if err != nil {
+		t.Fatalf("upsert rumour A: %v", err)
+	}
+	// B: player2, club1 -> club2 (matches club1 on the "from" side, not player1).
+	rumourB, _, err := s.UpsertRumour(ctx, store.UpsertRumourParams{
+		PlayerID: player2, FromClubID: &club1, ToClubID: club2, TransferWindow: uniqueName("window"),
+		Status: models.StatusRumoured,
+	})
+	if err != nil {
+		t.Fatalf("upsert rumour B: %v", err)
+	}
+	// C: player1 -> club2 (matches player1, not club1).
+	rumourC, _, err := s.UpsertRumour(ctx, store.UpsertRumourParams{
+		PlayerID: player1, ToClubID: club2, TransferWindow: uniqueName("window"),
+		Status: models.StatusRumoured,
+	})
+	if err != nil {
+		t.Fatalf("upsert rumour C: %v", err)
+	}
+
+	t.Run("club filter matches both to_club_id and from_club_id", func(t *testing.T) {
+		items, _, err := s.ListRumours(ctx, 100, 0, store.RumourFilter{ClubID: &club1})
+		if err != nil {
+			t.Fatalf("list rumours: %v", err)
+		}
+		if !containsID(items, rumourA.ID) || !containsID(items, rumourB.ID) {
+			t.Errorf("expected A and B (both touch club1), got %d rumours", len(items))
+		}
+		if containsID(items, rumourC.ID) {
+			t.Error("rumour C doesn't touch club1, should not match")
+		}
+	})
+
+	t.Run("player filter matches player_id", func(t *testing.T) {
+		items, _, err := s.ListRumours(ctx, 100, 0, store.RumourFilter{PlayerID: &player1})
+		if err != nil {
+			t.Fatalf("list rumours: %v", err)
+		}
+		if !containsID(items, rumourA.ID) || !containsID(items, rumourC.ID) {
+			t.Errorf("expected A and C (both player1), got %d rumours", len(items))
+		}
+		if containsID(items, rumourB.ID) {
+			t.Error("rumour B is player2, should not match")
+		}
+	})
+
+	t.Run("club and player filters combine with AND", func(t *testing.T) {
+		items, _, err := s.ListRumours(ctx, 100, 0, store.RumourFilter{ClubID: &club1, PlayerID: &player1})
+		if err != nil {
+			t.Fatalf("list rumours: %v", err)
+		}
+		if !containsID(items, rumourA.ID) {
+			t.Error("expected A (club1 AND player1) to match")
+		}
+		if containsID(items, rumourB.ID) || containsID(items, rumourC.ID) {
+			t.Error("B (wrong player) and C (wrong club) should not match the combined filter")
+		}
+	})
 }
 
 func TestIntegration_GetOrCreateClub_IsCaseInsensitiveAndIdempotent(t *testing.T) {
