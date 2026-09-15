@@ -47,6 +47,13 @@ jobs:
       - name: Apply migrations
         run: go run ./cmd/migrate up
 
+      # Store integration tests need the reference sources/clubs that
+      # migrations don't create (real RSS feeds live in seed.sql, not the
+      # schema). psql ships on the ubuntu runner. ON_ERROR_STOP so a bad
+      # seed fails the job instead of silently leaving the table empty.
+      - name: Seed reference data
+        run: psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f seed/seed.sql
+
       - name: Test
         run: go test ./...
 
