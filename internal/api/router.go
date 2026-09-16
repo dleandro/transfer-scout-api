@@ -51,13 +51,21 @@ type Store interface {
 	ListComments(ctx context.Context, rumourID uuid.UUID, limit, offset int) (comments []models.Comment, hasMore bool, err error)
 }
 
+// GoogleVerifier is the subset of *auth.GoogleVerifier the API needs.
+// Defined here (rather than depending on the concrete type) so Server can be
+// exercised in tests against a fake, without a real OIDC discovery fetch or
+// network call to Google — same reason Store is an interface.
+type GoogleVerifier interface {
+	Verify(ctx context.Context, rawIDToken string) (*auth.GoogleClaims, error)
+}
+
 type Server struct {
 	store          Store
 	authSecret     string
-	googleVerifier *auth.GoogleVerifier
+	googleVerifier GoogleVerifier
 }
 
-func NewServer(s Store, authSecret string, googleVerifier *auth.GoogleVerifier) *Server {
+func NewServer(s Store, authSecret string, googleVerifier GoogleVerifier) *Server {
 	return &Server{store: s, authSecret: authSecret, googleVerifier: googleVerifier}
 }
 

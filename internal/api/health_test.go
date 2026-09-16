@@ -13,6 +13,53 @@ import (
 	"github.com/dleandro/transfer-scout-api/internal/store"
 )
 
+// TestHandleHealth_FakeStore covers both branches of handleHealth without
+// any database at all — a fake whose Ping returns nil (healthy) or an error
+// (degraded). The real-pool variants below stay for the case where Ping's
+// actual behavior against a live/dead Postgres matters.
+func TestHandleHealth_FakeStore(t *testing.T) {
+	tests := []struct {
+		name     string
+		pingErr  error
+		wantCode int
+		wantBody map[string]string
+	}{
+		{
+			name:     "reachable returns 200 ok",
+			pingErr:  nil,
+			wantCode: http.StatusOK,
+			wantBody: map[string]string{"status": "ok"},
+		},
+		{
+			name:     "unreachable returns 503 degraded",
+			pingErr:  errStoreUnavailable,
+			wantCode: http.StatusServiceUnavailable,
+			wantBody: map[string]string{"status": "degraded", "db": "unreachable"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := NewServer(&fakeStore{pingErr: tt.pingErr}, "test-secret", nil)
+			w := httptest.NewRecorder()
+			srv.handleHealth(w, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+
+			if w.Code != tt.wantCode {
+				t.Fatalf("status = %d, want %d", w.Code, tt.wantCode)
+			}
+			var body map[string]string
+			if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+				t.Fatalf("decode body: %v", err)
+			}
+			for k, v := range tt.wantBody {
+				if body[k] != v {
+					t.Errorf("body[%q] = %q, want %q", k, body[k], v)
+				}
+			}
+		})
+	}
+}
+
 // TestHandleHealth_DBUnreachable_Returns503 doesn't need a real database:
 // a pool pointed at an address nothing is listening on fails to ping
 // without ever having connected, which is enough to exercise the
