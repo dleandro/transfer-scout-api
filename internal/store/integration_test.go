@@ -405,3 +405,75 @@ func TestIntegration_NudgeSourceReliability_ChangesScoreAndCredibility(t *testin
 		t.Errorf("credibility: got %v, want %v (single contributing source's score)", item.Credibility, scoreAfter)
 	}
 }
+
+// TestIntegration_GetOrCreateClub_StampsCrestFromMap proves GetOrCreateClub
+// populates crest_url from the clubCrests map on both club-creation paths:
+// creating a brand-new mapped club, and backfilling a pre-existing
+// crestless row (how the seeded clubs get their crest) — while leaving an
+// unmapped club's crest empty.
+func TestIntegration_GetOrCreateClub_StampsCrestFromMap(t *testing.T) {
+	s := newTestStore(t)
+	ctx := context.Background()
+
+	const (
+		arsenalCrest = "https://upload.wikimedia.org/wikipedia/en/5/53/Arsenal_FC.svg"
+		chelseaCrest = "https://upload.wikimedia.org/wikipedia/en/c/cc/Chelsea_FC.svg"
+	)
+
+	crestOf := func(id uuid.UUID) *string {
+		var crest *string
+		if err := s.Pool.QueryRow(ctx, `SELECT crest_url FROM clubs WHERE id = $1`, id).Scan(&crest); err != nil {
+			t.Fatalf("select crest_url: %v", err)
+		}
+		return crest
+	}
+
+	t.Run("backfills a pre-existing crestless seeded row on conflict", func(t *testing.T) {
+		// Mimic a seed/seed.sql row: the club exists with no crest yet.
+		// Reset crest to NULL so this holds even on a shared dev database
+		// where a previous run already stamped it.
+		var seededID uuid.UUID
+		if err := s.Pool.QueryRow(ctx, `
+			INSERT INTO clubs (name) VALUES ('Arsenal')
+			ON CONFLICT (lower(name)) DO UPDATE SET crest_url = NULL
+			RETURNING id`).Scan(&seededID); err != nil {
+			t.Fatalf("seed crestless Arsenal: %v", err)
+		}
+		if c := crestOf(seededID); c != nil {
+			t.Fatalf("precondition: expected seeded Arsenal to start crestless, got %q", *c)
+		}
+
+		// Lower-case name exercises the case-insensitive map lookup and the
+		// ON CONFLICT path — the route by which seeded rows get their crest.
+		gotID, err := s.GetOrCreateClub(ctx, "arsenal")
+		if err != nil {
+			t.Fatalf("GetOrCreateClub: %v", err)
+		}
+		if gotID != seededID {
+			t.Errorf("expected the existing Arsenal row (%s), got %s", seededID, gotID)
+		}
+		if crest := crestOf(gotID); crest == nil || *crest != arsenalCrest {
+			t.Errorf("crest_url = %v, want %q", crest, arsenalCrest)
+		}
+	})
+
+	t.Run("stamps crest when creating a mapped club", func(t *testing.T) {
+		id, err := s.GetOrCreateClub(ctx, "Chelsea")
+		if err != nil {
+			t.Fatalf("GetOrCreateClub: %v", err)
+		}
+		if crest := crestOf(id); crest == nil || *crest != chelseaCrest {
+			t.Errorf("crest_url = %v, want %q", crest, chelseaCrest)
+		}
+	})
+
+	t.Run("leaves crest empty for an unmapped club", func(t *testing.T) {
+		id, err := s.GetOrCreateClub(ctx, uniqueName("Unmapped Club"))
+		if err != nil {
+			t.Fatalf("GetOrCreateClub: %v", err)
+		}
+		if crest := crestOf(id); crest != nil {
+			t.Errorf("crest_url = %q, want nil for an unmapped club", *crest)
+		}
+	})
+}

@@ -14,13 +14,20 @@ import (
 // exact match on name, not fuzzy/alias matching — "Man United" and
 // "Manchester United" would create two separate club rows. Revisit with an
 // alias table if extraction output turns out to vary enough to matter.
+//
+// It also stamps crest_url from crestURLFor (the single source of truth for
+// crests): on insert for a newly created club, and on conflict to backfill
+// a row that pre-dates the crest (e.g. the clubs from seed/seed.sql). The
+// COALESCE keeps an existing crest when the club is not in the map, so a
+// club dropping out of the map never nulls a crest that is already set.
 func (s *Store) GetOrCreateClub(ctx context.Context, name string) (uuid.UUID, error) {
 	name = strings.TrimSpace(name)
 	var id uuid.UUID
 	err := s.Pool.QueryRow(ctx, `
-		INSERT INTO clubs (name) VALUES ($1)
-		ON CONFLICT (lower(name)) DO UPDATE SET name = clubs.name
-		RETURNING id`, name).Scan(&id)
+		INSERT INTO clubs (name, crest_url) VALUES ($1, $2)
+		ON CONFLICT (lower(name)) DO UPDATE
+		SET crest_url = COALESCE(EXCLUDED.crest_url, clubs.crest_url)
+		RETURNING id`, name, crestURLFor(name)).Scan(&id)
 	return id, err
 }
 

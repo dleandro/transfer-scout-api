@@ -60,6 +60,47 @@ func TestNewRumourView_PopulatesFromClubWhenPresent(t *testing.T) {
 	}
 }
 
+func TestNewRumourView_ExposesToClubCrest(t *testing.T) {
+	crest := "https://upload.wikimedia.org/wikipedia/en/5/53/Arsenal_FC.svg"
+
+	item := store.RumourFeedItem{
+		Rumour: models.Rumour{
+			ID:       uuid.New(),
+			PlayerID: uuid.New(),
+			ToClubID: uuid.New(),
+			Status:   models.StatusRumoured,
+		},
+		PlayerName:  "Test Player",
+		ToClubName:  "Arsenal",
+		ToClubCrest: &crest,
+	}
+
+	v := newRumourView(item)
+
+	if v.ToClub.CrestURL == nil || *v.ToClub.CrestURL != crest {
+		t.Errorf("expected to_club crest_url %q to be exposed, got %+v", crest, v.ToClub.CrestURL)
+	}
+}
+
+func TestNewRumourView_OmitsToClubCrestWhenAbsent(t *testing.T) {
+	item := store.RumourFeedItem{
+		Rumour: models.Rumour{
+			ID:       uuid.New(),
+			PlayerID: uuid.New(),
+			ToClubID: uuid.New(),
+			Status:   models.StatusRumoured,
+		},
+		PlayerName: "Test Player",
+		ToClubName: "Unmapped Club",
+	}
+
+	v := newRumourView(item)
+
+	if v.ToClub.CrestURL != nil {
+		t.Errorf("expected nil crest_url for an unmapped club, got %q", *v.ToClub.CrestURL)
+	}
+}
+
 func TestNewRumourEventView_CarriesSourceAndArticle(t *testing.T) {
 	ev := store.RumourEventItem{
 		RumourEvent: models.RumourEvent{
