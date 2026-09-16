@@ -255,6 +255,88 @@ func TestHandleListRumours_PaginationClampingReachesTheStore(t *testing.T) {
 	}
 }
 
+func TestHandleListRumours_NonIntegerPaginationReturns400(t *testing.T) {
+	// The handler's own error branch (not just parseIntParam in isolation):
+	// a present-but-unparseable limit/offset is a client error, so the
+	// store is never consulted.
+	cases := []struct {
+		name  string
+		query string
+	}{
+		{name: "non-integer limit", query: "limit=abc"},
+		{name: "non-integer offset", query: "offset=xyz"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			fs := &fakeStore{}
+			srv := NewServer(fs, "test-secret", nil)
+
+			w := httptest.NewRecorder()
+			srv.handleListRumours(w, httptest.NewRequest(http.MethodGet, "/api/v1/rumours?"+tc.query, nil))
+
+			if w.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want %d", w.Code, http.StatusBadRequest)
+			}
+			if fs.gotLimit != 0 || fs.gotOffset != 0 {
+				t.Errorf("store was consulted (limit=%d offset=%d), want no call on a bad request",
+					fs.gotLimit, fs.gotOffset)
+			}
+		})
+	}
+}
+
+func TestHandleListRumours_PopulatedListRendersViewShape(t *testing.T) {
+	// The empty-array test covers the nil-slice path; this covers the
+	// handler actually mapping each item through newRumourView and
+	// reporting has_more from the store.
+	fromClubID := uuid.New()
+	fromClubName := "Selling FC"
+	fs := &fakeStore{
+		hasMore: true,
+		rumours: []store.RumourFeedItem{{
+			Rumour:       models.Rumour{ID: uuid.New(), Status: models.StatusTalks, TransferWindow: "summer-2026", FromClubID: &fromClubID},
+			PlayerName:   "Test Player",
+			ToClubName:   "Buying FC",
+			FromClubName: &fromClubName,
+		}},
+	}
+	srv := NewServer(fs, "test-secret", nil)
+
+	w := httptest.NewRecorder()
+	srv.handleListRumours(w, httptest.NewRequest(http.MethodGet, "/api/v1/rumours", nil))
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+	var body struct {
+		HasMore bool `json:"has_more"`
+		Rumours []struct {
+			Player   struct{ Name string } `json:"player"`
+			ToClub   struct{ Name string } `json:"to_club"`
+			FromClub *struct {
+				Name string `json:"name"`
+			} `json:"from_club"`
+		} `json:"rumours"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if !body.HasMore {
+		t.Errorf("has_more = false, want true (passed through from the store)")
+	}
+	if len(body.Rumours) != 1 {
+		t.Fatalf("got %d rumours, want 1", len(body.Rumours))
+	}
+	r := body.Rumours[0]
+	if r.Player.Name != "Test Player" || r.ToClub.Name != "Buying FC" {
+		t.Errorf("view = %+v, want player/to_club names mapped through newRumourView", r)
+	}
+	if r.FromClub == nil || r.FromClub.Name != "Selling FC" {
+		t.Errorf("from_club = %+v, want the optional from-club mapped", r.FromClub)
+	}
+}
+
 func TestHandleListRumours_StoreErrorReturns500(t *testing.T) {
 	fs := &fakeStore{listErr: errStoreUnavailable}
 	srv := NewServer(fs, "test-secret", nil)
