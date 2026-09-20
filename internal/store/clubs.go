@@ -20,14 +20,24 @@ import (
 // a row that pre-dates the crest (e.g. the clubs from seed/seed.sql). The
 // COALESCE keeps an existing crest when the club is not in the map, so a
 // club dropping out of the map never nulls a crest that is already set.
+//
+// league_id is stamped the same way, reusing the same "is this club in
+// clubCrests" check rather than a second map — every club that map knows
+// about is a Premier League club for now. A club outside it (e.g. a
+// foreign club a rumour mentions only as the "from" side, like Real Madrid
+// in a Real Madrid -> PL move) gets no crest and no league — it stays NULL
+// rather than defaulting to the PL, which would misrepresent it.
 func (s *Store) GetOrCreateClub(ctx context.Context, name string) (uuid.UUID, error) {
 	name = strings.TrimSpace(name)
+	isKnownPLClub := crestURLFor(name) != nil
 	var id uuid.UUID
 	err := s.Pool.QueryRow(ctx, `
-		INSERT INTO clubs (name, crest_url) VALUES ($1, $2)
+		INSERT INTO clubs (name, crest_url, league_id)
+		VALUES ($1, $2, CASE WHEN $3 THEN (SELECT id FROM leagues WHERE lower(name) = 'premier league') END)
 		ON CONFLICT (lower(name)) DO UPDATE
-		SET crest_url = COALESCE(EXCLUDED.crest_url, clubs.crest_url)
-		RETURNING id`, name, crestURLFor(name)).Scan(&id)
+		SET crest_url = COALESCE(EXCLUDED.crest_url, clubs.crest_url),
+		    league_id = COALESCE(EXCLUDED.league_id, clubs.league_id)
+		RETURNING id`, name, crestURLFor(name), isKnownPLClub).Scan(&id)
 	return id, err
 }
 
@@ -38,19 +48,33 @@ type ClubFeedItem struct {
 	// FollowedByMe reports whether the viewer passed to ListClubs actively
 	// follows this club. Always false for a nil (anonymous) viewer.
 	FollowedByMe bool `json:"followed_by_me"`
+	// LeagueName is the joined leagues.name for this club's league_id, nil
+	// when the club has none — same "enrich via the feed item, not the
+	// plain model" convention as RumourFeedItem.ToClubName.
+	LeagueName *string `json:"league_name,omitempty"`
 }
 
 // ListClubs returns every club, alphabetically by name, plus whether
-// viewerID (nil for an anonymous caller) follows each one. Unbounded (no
+// viewerID (nil for an anonymous caller) follows each one. leagueID, when
+// non-nil, narrows the result to clubs in that league. Unbounded (no
 // pagination) — fine at current single-window PL scale (20 clubs); revisit
 // if this ever spans multiple windows/leagues.
-func (s *Store) ListClubs(ctx context.Context, viewerID *uuid.UUID) ([]ClubFeedItem, error) {
-	rows, err := s.Pool.Query(ctx, `
-		SELECT c.id, c.name, c.short_name, c.crest_url, c.created_at,
+func (s *Store) ListClubs(ctx context.Context, viewerID *uuid.UUID, leagueID *uuid.UUID) ([]ClubFeedItem, error) {
+	query := `
+		SELECT c.id, c.name, c.short_name, c.crest_url, c.league_id, c.created_at,
 		       EXISTS (SELECT 1 FROM follows f
-		                WHERE f.club_id = c.id AND f.user_id = $1 AND f.deleted_at IS NULL) AS followed_by_me
+		                WHERE f.club_id = c.id AND f.user_id = $1 AND f.deleted_at IS NULL) AS followed_by_me,
+		       l.name AS league_name
 		FROM clubs c
-		ORDER BY c.name`, viewerID)
+		LEFT JOIN leagues l ON l.id = c.league_id`
+	args := []any{viewerID}
+	if leagueID != nil {
+		query += "\n\tWHERE c.league_id = $2"
+		args = append(args, *leagueID)
+	}
+	query += "\n\tORDER BY c.name"
+
+	rows, err := s.Pool.Query(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +83,7 @@ func (s *Store) ListClubs(ctx context.Context, viewerID *uuid.UUID) ([]ClubFeedI
 	var clubs []ClubFeedItem
 	for rows.Next() {
 		var c ClubFeedItem
-		if err := rows.Scan(&c.ID, &c.Name, &c.ShortName, &c.CrestURL, &c.CreatedAt, &c.FollowedByMe); err != nil {
+		if err := rows.Scan(&c.ID, &c.Name, &c.ShortName, &c.CrestURL, &c.LeagueID, &c.CreatedAt, &c.FollowedByMe, &c.LeagueName); err != nil {
 			return nil, err
 		}
 		clubs = append(clubs, c)

@@ -154,6 +154,55 @@ func TestNewRumourView_LikeCountAndLikedByMeAreUnconditionalInJSON(t *testing.T)
 	}
 }
 
+func TestNewRumourView_ExposesLeagueIDOnClubsWhenPresent(t *testing.T) {
+	fromClubID := uuid.New()
+	toLeagueID := uuid.New()
+	fromLeagueID := uuid.New()
+
+	item := store.RumourFeedItem{
+		Rumour: models.Rumour{
+			ID:         uuid.New(),
+			PlayerID:   uuid.New(),
+			ToClubID:   uuid.New(),
+			FromClubID: &fromClubID,
+			Status:     models.StatusRumoured,
+		},
+		PlayerName:       "Test Player",
+		ToClubName:       "Test Club",
+		FromClubName:     new(string),
+		ToClubLeagueID:   &toLeagueID,
+		FromClubLeagueID: &fromLeagueID,
+	}
+
+	v := newRumourView(item)
+
+	if v.ToClub.LeagueID == nil || *v.ToClub.LeagueID != toLeagueID {
+		t.Errorf("ToClub.LeagueID = %v, want %v", v.ToClub.LeagueID, toLeagueID)
+	}
+	if v.FromClub == nil || v.FromClub.LeagueID == nil || *v.FromClub.LeagueID != fromLeagueID {
+		t.Errorf("FromClub.LeagueID = %v, want %v", v.FromClub, fromLeagueID)
+	}
+}
+
+func TestNewRumourView_OmitsLeagueIDOnClubsWhenAbsent(t *testing.T) {
+	item := store.RumourFeedItem{
+		Rumour: models.Rumour{
+			ID:       uuid.New(),
+			PlayerID: uuid.New(),
+			ToClubID: uuid.New(),
+			Status:   models.StatusRumoured,
+		},
+		PlayerName: "Test Player",
+		ToClubName: "Unmapped Club",
+	}
+
+	v := newRumourView(item)
+
+	if v.ToClub.LeagueID != nil {
+		t.Errorf("expected nil league_id for a leagueless club, got %v", *v.ToClub.LeagueID)
+	}
+}
+
 func TestNewRumourEventView_CarriesSourceAndArticle(t *testing.T) {
 	ev := store.RumourEventItem{
 		RumourEvent: models.RumourEvent{

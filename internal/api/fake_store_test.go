@@ -39,6 +39,8 @@ type fakeStore struct {
 	clubsErr   error
 	players    []models.Player
 	playersErr error
+	leagues    []models.League
+	leaguesErr error
 
 	likeRumourErr   error
 	unlikeRumourErr error
@@ -52,6 +54,7 @@ type fakeStore struct {
 	gotFilter                            store.RumourFilter
 	gotViewerID                          *uuid.UUID
 	gotClubsViewerID                     *uuid.UUID
+	gotClubsLeagueID                     *uuid.UUID
 	gotID                                uuid.UUID
 	gotCommentBody                       string
 	gotCommentUserID                     uuid.UUID
@@ -72,8 +75,8 @@ func (f *fakeStore) ListRumours(ctx context.Context, limit, offset int, filter s
 	return f.rumours, f.hasMore, nil
 }
 
-func (f *fakeStore) ListClubs(ctx context.Context, viewerID *uuid.UUID) ([]store.ClubFeedItem, error) {
-	f.gotClubsViewerID = viewerID
+func (f *fakeStore) ListClubs(ctx context.Context, viewerID, leagueID *uuid.UUID) ([]store.ClubFeedItem, error) {
+	f.gotClubsViewerID, f.gotClubsLeagueID = viewerID, leagueID
 	if f.clubsErr != nil {
 		return nil, f.clubsErr
 	}
@@ -85,6 +88,13 @@ func (f *fakeStore) ListPlayers(ctx context.Context) ([]models.Player, error) {
 		return nil, f.playersErr
 	}
 	return f.players, nil
+}
+
+func (f *fakeStore) ListLeagues(ctx context.Context) ([]models.League, error) {
+	if f.leaguesErr != nil {
+		return nil, f.leaguesErr
+	}
+	return f.leagues, nil
 }
 
 func (f *fakeStore) GetRumourByID(ctx context.Context, id uuid.UUID, viewerID *uuid.UUID) (*store.RumourFeedItem, []store.RumourEventItem, error) {

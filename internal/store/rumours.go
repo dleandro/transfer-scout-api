@@ -35,6 +35,12 @@ type RumourFeedItem struct {
 	ToClubCrest   *string
 	FromClubName  *string
 	FromClubCrest *string
+	// ToClubLeagueID/FromClubLeagueID are the joined clubs.league_id for
+	// each side of the deal — free to expose since tc/fc are already
+	// joined for the name/crest columns above; nil when that club has no
+	// known league (see GetOrCreateClub's league_id comment).
+	ToClubLeagueID   *uuid.UUID
+	FromClubLeagueID *uuid.UUID
 	// Credibility is the average reliability_score (0-100) across the
 	// distinct sources that reported this rumour. NULL if the rumour
 	// somehow has no events yet.
@@ -55,7 +61,7 @@ type RumourFeedItem struct {
 const rumourFeedSelect = `
 	SELECT r.id, r.player_id, r.from_club_id, r.to_club_id, r.transfer_window, r.status,
 	       r.fee_min_eur, r.fee_max_eur, r.summary, r.confidence, r.created_at, r.updated_at,
-	       p.name, tc.name, tc.crest_url, fc.name, fc.crest_url,
+	       p.name, tc.name, tc.crest_url, fc.name, fc.crest_url, tc.league_id, fc.league_id,
 	       (SELECT AVG(src.reliability_score)
 	          FROM rumour_events re
 	          JOIN sources src ON src.id = re.source_id
@@ -73,14 +79,20 @@ func scanRumourFeedItem(row pgxScanner, item *RumourFeedItem) error {
 	return row.Scan(&item.ID, &item.PlayerID, &item.FromClubID, &item.ToClubID, &item.TransferWindow, &item.Status,
 		&item.FeeMinEUR, &item.FeeMaxEUR, &item.Summary, &item.Confidence, &item.CreatedAt, &item.UpdatedAt,
 		&item.PlayerName, &item.ToClubName, &item.ToClubCrest, &item.FromClubName, &item.FromClubCrest,
+		&item.ToClubLeagueID, &item.FromClubLeagueID,
 		&item.Credibility, &item.LikeCount, &item.LikedByMe)
 }
 
-// RumourFilter narrows ListRumours to rumours involving a specific club
-// and/or player. A nil field means "don't filter on this". ClubID matches
-// either side of the deal (to_club_id OR from_club_id) — a fan of a
-// selling club cares about outgoing rumours too. Non-nil fields combine
+// RumourFilter narrows ListRumours to rumours involving a specific club,
+// player, and/or league. A nil field means "don't filter on this". ClubID
+// and LeagueID both match either side of the deal (to_club_id OR
+// from_club_id, resp. tc.league_id OR fc.league_id) — a fan of a selling
+// club/league cares about outgoing rumours too. Non-nil fields combine
 // with AND.
+//
+// LeagueID reads tc.league_id/fc.league_id directly rather than a new
+// JOIN/EXISTS against clubs: rumourFeedSelect already joins tc/fc for the
+// name/crest columns, so the league_id column is already there for free.
 //
 // Following narrows to rumours touching (either side, same as ClubID) any
 // club the viewer passed to ListRumours actively follows. It only ever
@@ -91,6 +103,7 @@ func scanRumourFeedItem(row pgxScanner, item *RumourFeedItem) error {
 type RumourFilter struct {
 	ClubID    *uuid.UUID
 	PlayerID  *uuid.UUID
+	LeagueID  *uuid.UUID
 	Following bool
 }
 
@@ -115,6 +128,11 @@ func (s *Store) ListRumours(ctx context.Context, limit, offset int, filter Rumou
 	if filter.PlayerID != nil {
 		conditions = append(conditions, fmt.Sprintf("r.player_id = $%d", argN))
 		args = append(args, *filter.PlayerID)
+		argN++
+	}
+	if filter.LeagueID != nil {
+		conditions = append(conditions, fmt.Sprintf("(tc.league_id = $%d OR fc.league_id = $%d)", argN, argN))
+		args = append(args, *filter.LeagueID)
 		argN++
 	}
 	if filter.Following {

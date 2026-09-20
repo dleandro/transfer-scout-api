@@ -43,8 +43,9 @@ type Store interface {
 	ListRumours(ctx context.Context, limit, offset int, filter store.RumourFilter, viewerID *uuid.UUID) ([]store.RumourFeedItem, bool, error)
 	GetRumourByID(ctx context.Context, id uuid.UUID, viewerID *uuid.UUID) (*store.RumourFeedItem, []store.RumourEventItem, error)
 	RumourExists(ctx context.Context, id uuid.UUID) (bool, error)
-	ListClubs(ctx context.Context, viewerID *uuid.UUID) ([]store.ClubFeedItem, error)
+	ListClubs(ctx context.Context, viewerID *uuid.UUID, leagueID *uuid.UUID) ([]store.ClubFeedItem, error)
 	ListPlayers(ctx context.Context) ([]models.Player, error)
+	ListLeagues(ctx context.Context) ([]models.League, error)
 	Ping(ctx context.Context) error
 	UpsertUser(ctx context.Context, googleSub, email, displayName, avatarURL string) (*models.User, error)
 	CreateComment(ctx context.Context, rumourID, userID uuid.UUID, body string) (*models.Comment, error)
@@ -93,6 +94,7 @@ func (s *Server) Router() http.Handler {
 		r.Get("/rumours/{id}", s.handleGetRumour)
 		r.Get("/clubs", s.handleListClubs)
 		r.Get("/players", s.handleListPlayers)
+		r.Get("/leagues", s.handleListLeagues)
 		r.Get("/rumours/{id}/comments", s.handleListComments)
 		r.Post("/auth/google", s.handleGoogleAuth)
 
