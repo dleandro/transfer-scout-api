@@ -39,8 +39,19 @@ type RumourFeedItem struct {
 	// distinct sources that reported this rumour. NULL if the rumour
 	// somehow has no events yet.
 	Credibility *float64
+	// LikeCount is the number of active (non-unliked) likes on this
+	// rumour — always computed, regardless of viewer.
+	LikeCount int
+	// LikedByMe reports whether the viewer passed to ListRumours/
+	// GetRumourByID has actively liked this rumour. Always false for a
+	// nil (anonymous) viewer.
+	LikedByMe bool
 }
 
+// rumourFeedSelect's first placeholder ($1) is always the viewer id
+// (nullable — a nil viewer makes the liked_by_me subquery's comparison
+// never match, which is exactly "not liked by an anonymous viewer").
+// Callers number their own placeholders starting at $2.
 const rumourFeedSelect = `
 	SELECT r.id, r.player_id, r.from_club_id, r.to_club_id, r.transfer_window, r.status,
 	       r.fee_min_eur, r.fee_max_eur, r.summary, r.confidence, r.created_at, r.updated_at,
@@ -48,7 +59,11 @@ const rumourFeedSelect = `
 	       (SELECT AVG(src.reliability_score)
 	          FROM rumour_events re
 	          JOIN sources src ON src.id = re.source_id
-	         WHERE re.rumour_id = r.id) AS credibility
+	         WHERE re.rumour_id = r.id) AS credibility,
+	       (SELECT COUNT(*) FROM likes lk
+	         WHERE lk.rumour_id = r.id AND lk.deleted_at IS NULL) AS like_count,
+	       EXISTS (SELECT 1 FROM likes vlk
+	                WHERE vlk.rumour_id = r.id AND vlk.user_id = $1 AND vlk.deleted_at IS NULL) AS liked_by_me
 	FROM rumours r
 	JOIN players p ON p.id = r.player_id
 	JOIN clubs tc ON tc.id = r.to_club_id
@@ -58,7 +73,7 @@ func scanRumourFeedItem(row pgxScanner, item *RumourFeedItem) error {
 	return row.Scan(&item.ID, &item.PlayerID, &item.FromClubID, &item.ToClubID, &item.TransferWindow, &item.Status,
 		&item.FeeMinEUR, &item.FeeMaxEUR, &item.Summary, &item.Confidence, &item.CreatedAt, &item.UpdatedAt,
 		&item.PlayerName, &item.ToClubName, &item.ToClubCrest, &item.FromClubName, &item.FromClubCrest,
-		&item.Credibility)
+		&item.Credibility, &item.LikeCount, &item.LikedByMe)
 }
 
 // RumourFilter narrows ListRumours to rumours involving a specific club
@@ -74,15 +89,16 @@ type RumourFilter struct {
 // ListRumours returns the most recently updated rumours matching filter,
 // enriched with player/club names and crests, one page at a time
 // (limit/offset), along with whether a further page exists beyond this
-// one.
+// one. viewerID (nil for an anonymous caller) controls each item's
+// LikedByMe.
 //
 // hasMore is computed by requesting limit+1 rows and trimming the extra
 // one if present, rather than a separate COUNT(*) query — cheaper, and
 // avoids a second round trip for every page.
-func (s *Store) ListRumours(ctx context.Context, limit, offset int, filter RumourFilter) (items []RumourFeedItem, hasMore bool, err error) {
+func (s *Store) ListRumours(ctx context.Context, limit, offset int, filter RumourFilter, viewerID *uuid.UUID) (items []RumourFeedItem, hasMore bool, err error) {
+	args := []any{viewerID}
 	var conditions []string
-	var args []any
-	argN := 1
+	argN := 2
 	if filter.ClubID != nil {
 		conditions = append(conditions, fmt.Sprintf("(r.to_club_id = $%d OR r.from_club_id = $%d)", argN, argN))
 		args = append(args, *filter.ClubID)
@@ -147,10 +163,11 @@ type RumourEventItem struct {
 
 // GetRumourByID returns a single rumour (enriched with player/club
 // names and crests) and its full event timeline, oldest first, each
-// event enriched with its source name and article URL/title.
-func (s *Store) GetRumourByID(ctx context.Context, id uuid.UUID) (*RumourFeedItem, []RumourEventItem, error) {
+// event enriched with its source name and article URL/title. viewerID
+// (nil for an anonymous caller) controls the item's LikedByMe.
+func (s *Store) GetRumourByID(ctx context.Context, id uuid.UUID, viewerID *uuid.UUID) (*RumourFeedItem, []RumourEventItem, error) {
 	var item RumourFeedItem
-	if err := scanRumourFeedItem(s.Pool.QueryRow(ctx, rumourFeedSelect+` WHERE r.id = $1`, id), &item); err != nil {
+	if err := scanRumourFeedItem(s.Pool.QueryRow(ctx, rumourFeedSelect+` WHERE r.id = $2`, viewerID, id), &item); err != nil {
 		return nil, nil, err
 	}
 

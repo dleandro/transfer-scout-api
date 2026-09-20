@@ -121,3 +121,59 @@ func TestKeyByUserID_NoUserInContextReturnsError(t *testing.T) {
 		t.Fatal("expected an error when no user ID is in context, got none")
 	}
 }
+
+func TestOptionalAuth_NoHeaderCallsNextAsAnonymous(t *testing.T) {
+	h := OptionalAuth("test-secret")(handlerRecordingAnonymousOrUser(t))
+
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/", nil))
+
+	if w.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d (anonymous requests still reach the handler)", w.Code, http.StatusOK)
+	}
+}
+
+func TestOptionalAuth_InvalidTokenCallsNextAsAnonymousRatherThanRejecting(t *testing.T) {
+	h := OptionalAuth("test-secret")(handlerRecordingAnonymousOrUser(t))
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Authorization", "Bearer not-a-real-token")
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d (an invalid token on a public endpoint should not 401)", w.Code, http.StatusOK)
+	}
+}
+
+func TestOptionalAuth_ValidTokenPopulatesContext(t *testing.T) {
+	userID := uuid.New()
+	token, err := IssueToken(userID, "test-secret", time.Hour)
+	if err != nil {
+		t.Fatalf("IssueToken: %v", err)
+	}
+
+	var got uuid.UUID
+	h := OptionalAuth("test-secret")(handlerRecordingContextUserID(t, &got))
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("status = %d, want %d", w.Code, http.StatusOK)
+	}
+	if got != userID {
+		t.Errorf("context user ID = %v, want %v", got, userID)
+	}
+}
+
+// handlerRecordingAnonymousOrUser always responds 200, regardless of
+// whether UserIDFromContext finds a user — used to assert OptionalAuth
+// never blocks the chain, unlike RequireAuth.
+func handlerRecordingAnonymousOrUser(t *testing.T) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+}

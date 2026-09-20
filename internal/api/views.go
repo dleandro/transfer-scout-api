@@ -33,9 +33,15 @@ type rumourView struct {
 	Confidence     *float64            `json:"confidence,omitempty"`
 	// Credibility is the average reliability_score (0-100) across this
 	// rumour's contributing sources — see store.RumourFeedItem.
-	Credibility *float64  `json:"credibility,omitempty"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	Credibility *float64 `json:"credibility,omitempty"`
+	// LikeCount and LikedByMe are unconditional (no omitempty): a rumour
+	// with zero likes still reports like_count: 0, and an anonymous
+	// viewer still reports liked_by_me: false, rather than omitting the
+	// field.
+	LikeCount int       `json:"like_count"`
+	LikedByMe bool      `json:"liked_by_me"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 func newRumourView(item store.RumourFeedItem) rumourView {
@@ -50,6 +56,8 @@ func newRumourView(item store.RumourFeedItem) rumourView {
 		Summary:        item.Summary,
 		Confidence:     item.Confidence,
 		Credibility:    item.Credibility,
+		LikeCount:      item.LikeCount,
+		LikedByMe:      item.LikedByMe,
 		CreatedAt:      item.CreatedAt,
 		UpdatedAt:      item.UpdatedAt,
 	}

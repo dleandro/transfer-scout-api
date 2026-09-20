@@ -11,8 +11,20 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	"github.com/dleandro/transfer-scout-api/internal/auth"
 	"github.com/dleandro/transfer-scout-api/internal/store"
 )
+
+// viewerIDFromContext returns the authenticated caller's id, or nil for
+// an anonymous one — the shape store.ListRumours/GetRumourByID want for
+// their optional viewerID parameter (see auth.OptionalAuth in Router).
+func viewerIDFromContext(ctx context.Context) *uuid.UUID {
+	userID, ok := auth.UserIDFromContext(ctx)
+	if !ok {
+		return nil
+	}
+	return &userID
+}
 
 // healthzTimeout bounds how long the DB ping in handleHealth can take,
 // so a slow/unreachable database doesn't hang the health check itself.
@@ -99,7 +111,7 @@ func (s *Server) handleListRumours(w http.ResponseWriter, r *http.Request) {
 	}
 	filter := store.RumourFilter{ClubID: clubID, PlayerID: playerID}
 
-	items, hasMore, err := s.store.ListRumours(r.Context(), limit, offset, filter)
+	items, hasMore, err := s.store.ListRumours(r.Context(), limit, offset, filter, viewerIDFromContext(r.Context()))
 	if err != nil {
 		http.Error(w, "failed to list rumours", http.StatusInternalServerError)
 		return
@@ -179,7 +191,7 @@ func (s *Server) handleGetRumour(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	item, events, err := s.store.GetRumourByID(r.Context(), id)
+	item, events, err := s.store.GetRumourByID(r.Context(), id, viewerIDFromContext(r.Context()))
 	if err != nil {
 		http.Error(w, "rumour not found", http.StatusNotFound)
 		return

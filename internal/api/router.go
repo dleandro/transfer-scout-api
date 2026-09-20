@@ -40,8 +40,8 @@ const mutationsRateLimit = 10 // requests per minute per user
 // in tests against a fake, without a real Postgres connection — mirrors
 // the pattern already used in internal/ingest.
 type Store interface {
-	ListRumours(ctx context.Context, limit, offset int, filter store.RumourFilter) ([]store.RumourFeedItem, bool, error)
-	GetRumourByID(ctx context.Context, id uuid.UUID) (*store.RumourFeedItem, []store.RumourEventItem, error)
+	ListRumours(ctx context.Context, limit, offset int, filter store.RumourFilter, viewerID *uuid.UUID) ([]store.RumourFeedItem, bool, error)
+	GetRumourByID(ctx context.Context, id uuid.UUID, viewerID *uuid.UUID) (*store.RumourFeedItem, []store.RumourEventItem, error)
 	RumourExists(ctx context.Context, id uuid.UUID) (bool, error)
 	ListClubs(ctx context.Context) ([]models.Club, error)
 	ListPlayers(ctx context.Context) ([]models.Player, error)
@@ -49,6 +49,8 @@ type Store interface {
 	UpsertUser(ctx context.Context, googleSub, email, displayName, avatarURL string) (*models.User, error)
 	CreateComment(ctx context.Context, rumourID, userID uuid.UUID, body string) (*models.Comment, error)
 	ListComments(ctx context.Context, rumourID uuid.UUID, limit, offset int) (comments []models.Comment, hasMore bool, err error)
+	LikeRumour(ctx context.Context, rumourID, userID uuid.UUID) error
+	UnlikeRumour(ctx context.Context, rumourID, userID uuid.UUID) error
 }
 
 // GoogleVerifier is the subset of *auth.GoogleVerifier the API needs.
@@ -81,6 +83,10 @@ func (s *Server) Router() http.Handler {
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(httprate.LimitByIP(rumoursRateLimit, time.Minute))
+		// OptionalAuth lets handleListRumours/handleGetRumour populate
+		// liked_by_me for a recognized caller while staying public —
+		// see auth.OptionalAuth for the anonymous-fallback behavior.
+		r.Use(auth.OptionalAuth(s.authSecret))
 		r.Get("/rumours", s.handleListRumours)
 		r.Get("/rumours/{id}", s.handleGetRumour)
 		r.Get("/clubs", s.handleListClubs)
@@ -92,6 +98,8 @@ func (s *Server) Router() http.Handler {
 			r.Use(auth.RequireAuth(s.authSecret))
 			r.Use(httprate.LimitBy(mutationsRateLimit, time.Minute, auth.KeyByUserID))
 			r.Post("/rumours/{id}/comments", s.handleCreateComment)
+			r.Post("/rumours/{id}/like", s.handleLikeRumour)
+			r.Delete("/rumours/{id}/like", s.handleUnlikeRumour)
 		})
 	})
 

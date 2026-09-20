@@ -82,7 +82,7 @@ func TestIntegration_ListRumours_HasMoreReflectsWhetherAFurtherPageExists(t *tes
 		t.Fatalf("expected at least 2 rumours to test pagination against, got %d", total)
 	}
 
-	all, hasMoreAll, err := s.ListRumours(ctx, total, 0, store.RumourFilter{})
+	all, hasMoreAll, err := s.ListRumours(ctx, total, 0, store.RumourFilter{}, nil)
 	if err != nil {
 		t.Fatalf("list rumours (limit covering every row): %v", err)
 	}
@@ -93,7 +93,7 @@ func TestIntegration_ListRumours_HasMoreReflectsWhetherAFurtherPageExists(t *tes
 		t.Error("expected has_more=false when limit covers every row")
 	}
 
-	partial, hasMorePartial, err := s.ListRumours(ctx, total-1, 0, store.RumourFilter{})
+	partial, hasMorePartial, err := s.ListRumours(ctx, total-1, 0, store.RumourFilter{}, nil)
 	if err != nil {
 		t.Fatalf("list rumours (limit one short): %v", err)
 	}
@@ -166,7 +166,7 @@ func TestIntegration_ListRumours_FilterByClubAndPlayer(t *testing.T) {
 	}
 
 	t.Run("club filter matches both to_club_id and from_club_id", func(t *testing.T) {
-		items, _, err := s.ListRumours(ctx, 100, 0, store.RumourFilter{ClubID: &club1})
+		items, _, err := s.ListRumours(ctx, 100, 0, store.RumourFilter{ClubID: &club1}, nil)
 		if err != nil {
 			t.Fatalf("list rumours: %v", err)
 		}
@@ -179,7 +179,7 @@ func TestIntegration_ListRumours_FilterByClubAndPlayer(t *testing.T) {
 	})
 
 	t.Run("player filter matches player_id", func(t *testing.T) {
-		items, _, err := s.ListRumours(ctx, 100, 0, store.RumourFilter{PlayerID: &player1})
+		items, _, err := s.ListRumours(ctx, 100, 0, store.RumourFilter{PlayerID: &player1}, nil)
 		if err != nil {
 			t.Fatalf("list rumours: %v", err)
 		}
@@ -192,7 +192,7 @@ func TestIntegration_ListRumours_FilterByClubAndPlayer(t *testing.T) {
 	})
 
 	t.Run("club and player filters combine with AND", func(t *testing.T) {
-		items, _, err := s.ListRumours(ctx, 100, 0, store.RumourFilter{ClubID: &club1, PlayerID: &player1})
+		items, _, err := s.ListRumours(ctx, 100, 0, store.RumourFilter{ClubID: &club1, PlayerID: &player1}, nil)
 		if err != nil {
 			t.Fatalf("list rumours: %v", err)
 		}
@@ -317,7 +317,7 @@ func TestIntegration_UpsertRumour_ClustersStatusForwardOnlyAndWidensFeeRange(t *
 		t.Fatalf("insert rumour event: %v", err)
 	}
 
-	item, events, err := s.GetRumourByID(ctx, r2.ID)
+	item, events, err := s.GetRumourByID(ctx, r2.ID, nil)
 	if err != nil {
 		t.Fatalf("get rumour by id: %v", err)
 	}
@@ -397,7 +397,7 @@ func TestIntegration_NudgeSourceReliability_ChangesScoreAndCredibility(t *testin
 		t.Errorf("reliability_score: got %v, want %v", scoreAfter, scoreBefore+2.0)
 	}
 
-	item, _, err := s.GetRumourByID(ctx, rumour.ID)
+	item, _, err := s.GetRumourByID(ctx, rumour.ID, nil)
 	if err != nil {
 		t.Fatalf("get rumour by id: %v", err)
 	}
