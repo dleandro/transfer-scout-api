@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/google/uuid"
@@ -98,6 +99,58 @@ func TestNewRumourView_OmitsToClubCrestWhenAbsent(t *testing.T) {
 
 	if v.ToClub.CrestURL != nil {
 		t.Errorf("expected nil crest_url for an unmapped club, got %q", *v.ToClub.CrestURL)
+	}
+}
+
+func TestNewRumourView_CarriesLikeCountAndLikedByMe(t *testing.T) {
+	item := store.RumourFeedItem{
+		Rumour: models.Rumour{
+			ID:       uuid.New(),
+			PlayerID: uuid.New(),
+			ToClubID: uuid.New(),
+			Status:   models.StatusRumoured,
+		},
+		PlayerName: "Test Player",
+		ToClubName: "Test Club",
+		LikeCount:  3,
+		LikedByMe:  true,
+	}
+
+	v := newRumourView(item)
+
+	if v.LikeCount != 3 {
+		t.Errorf("LikeCount = %d, want 3", v.LikeCount)
+	}
+	if !v.LikedByMe {
+		t.Error("LikedByMe = false, want true")
+	}
+}
+
+func TestNewRumourView_LikeCountAndLikedByMeAreUnconditionalInJSON(t *testing.T) {
+	item := store.RumourFeedItem{
+		Rumour: models.Rumour{
+			ID:       uuid.New(),
+			PlayerID: uuid.New(),
+			ToClubID: uuid.New(),
+			Status:   models.StatusRumoured,
+		},
+		PlayerName: "Test Player",
+		ToClubName: "Test Club",
+	}
+
+	body, err := json.Marshal(newRumourView(item))
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(body, &decoded); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if _, ok := decoded["like_count"]; !ok {
+		t.Error("expected like_count present in JSON even at zero value (unconditional, public)")
+	}
+	if _, ok := decoded["liked_by_me"]; !ok {
+		t.Error("expected liked_by_me present in JSON even at false (unconditional)")
 	}
 }
 

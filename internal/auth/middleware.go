@@ -47,6 +47,25 @@ func RequireAuth(secret string) func(http.Handler) http.Handler {
 	}
 }
 
+// OptionalAuth parses a Bearer token the same way RequireAuth does, but
+// never rejects the request: a missing, malformed, or invalid/expired
+// token is treated as an anonymous caller rather than a 401, so public
+// endpoints stay browsable while still personalizing (via
+// UserIDFromContext) when a valid token is present.
+func OptionalAuth(secret string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			token, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer ")
+			if ok && token != "" {
+				if userID, err := ParseToken(token, secret); err == nil {
+					r = r.WithContext(context.WithValue(r.Context(), userIDContextKey, userID))
+				}
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 // UserIDFromContext returns the authenticated user's ID, as placed by
 // RequireAuth.
 func UserIDFromContext(ctx context.Context) (uuid.UUID, bool) {
