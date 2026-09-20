@@ -73,10 +73,10 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 // the caller whether requesting the next offset would return more rows.
 // This replaces the previous bare-array response shape.
 //
-// Also accepts optional club_id/player_id UUID query params (Milestone
-// 3.4) to narrow the feed — see store.RumourFilter for matching rules.
-// A malformed UUID on either returns 400; absent params behave exactly
-// as before (no filtering).
+// Also accepts optional club_id/player_id/league_id UUID query params
+// (Milestone 3.4, leagues added later) to narrow the feed — see
+// store.RumourFilter for matching rules. A malformed UUID on any of them
+// returns 400; absent params behave exactly as before (no filtering).
 //
 // following=true narrows to rumours touching a club the caller follows
 // (see store.RumourFilter.Following) — any other value, or an absent
@@ -119,9 +119,15 @@ func (s *Server) handleListRumours(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	leagueID, err := parseUUIDParam(r, "league_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	filter := store.RumourFilter{
 		ClubID:    clubID,
 		PlayerID:  playerID,
+		LeagueID:  leagueID,
 		Following: r.URL.Query().Get("following") == "true",
 	}
 
@@ -177,8 +183,17 @@ func parseUUIDParam(r *http.Request, name string) (*uuid.UUID, error) {
 // followed_by_me for the caller (see auth.OptionalAuth in Router) — used
 // both to populate a filter dropdown and to drive a "Follow" toggle per
 // club. followed_by_me is false for an anonymous caller.
+//
+// Also accepts an optional league_id UUID query param to narrow the list
+// to one league — a malformed UUID returns 400, mirroring club_id on
+// GET /rumours.
 func (s *Server) handleListClubs(w http.ResponseWriter, r *http.Request) {
-	clubs, err := s.store.ListClubs(r.Context(), viewerIDFromContext(r.Context()))
+	leagueID, err := parseUUIDParam(r, "league_id")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	clubs, err := s.store.ListClubs(r.Context(), viewerIDFromContext(r.Context()), leagueID)
 	if err != nil {
 		http.Error(w, "failed to list clubs", http.StatusInternalServerError)
 		return
@@ -195,6 +210,18 @@ func (s *Server) handleListPlayers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"players": players})
+}
+
+// handleListLeagues returns every league, alphabetically by name — for
+// populating a filter dropdown (PL-only today, but the endpoint doesn't
+// assume that).
+func (s *Server) handleListLeagues(w http.ResponseWriter, r *http.Request) {
+	leagues, err := s.store.ListLeagues(r.Context())
+	if err != nil {
+		http.Error(w, "failed to list leagues", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"leagues": leagues})
 }
 
 // handleGetRumour returns a single rumour, enriched with player/club

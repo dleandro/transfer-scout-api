@@ -15,9 +15,10 @@ type playerView struct {
 }
 
 type clubView struct {
-	ID       uuid.UUID `json:"id"`
-	Name     string    `json:"name"`
-	CrestURL *string   `json:"crest_url,omitempty"`
+	ID       uuid.UUID  `json:"id"`
+	Name     string     `json:"name"`
+	CrestURL *string    `json:"crest_url,omitempty"`
+	LeagueID *uuid.UUID `json:"league_id,omitempty"`
 }
 
 type rumourView struct {
@@ -48,7 +49,7 @@ func newRumourView(item store.RumourFeedItem) rumourView {
 	v := rumourView{
 		ID:             item.ID,
 		Player:         playerView{ID: item.PlayerID, Name: item.PlayerName},
-		ToClub:         clubView{ID: item.ToClubID, Name: item.ToClubName, CrestURL: item.ToClubCrest},
+		ToClub:         clubView{ID: item.ToClubID, Name: item.ToClubName, CrestURL: item.ToClubCrest, LeagueID: item.ToClubLeagueID},
 		TransferWindow: item.TransferWindow,
 		Status:         item.Status,
 		FeeMinEUR:      item.FeeMinEUR,
@@ -66,7 +67,7 @@ func newRumourView(item store.RumourFeedItem) rumourView {
 		if item.FromClubName != nil {
 			name = *item.FromClubName
 		}
-		v.FromClub = &clubView{ID: *item.FromClubID, Name: name, CrestURL: item.FromClubCrest}
+		v.FromClub = &clubView{ID: *item.FromClubID, Name: name, CrestURL: item.FromClubCrest, LeagueID: item.FromClubLeagueID}
 	}
 	return v
 }

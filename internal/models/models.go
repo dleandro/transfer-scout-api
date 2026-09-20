@@ -58,10 +58,22 @@ func (s RumourStatus) IsForwardTransition(next RumourStatus) bool {
 }
 
 type Club struct {
+	ID        uuid.UUID  `json:"id"`
+	Name      string     `json:"name"`
+	ShortName *string    `json:"short_name,omitempty"`
+	CrestURL  *string    `json:"crest_url,omitempty"`
+	LeagueID  *uuid.UUID `json:"league_id,omitempty"`
+	CreatedAt time.Time  `json:"created_at"`
+}
+
+// League is a competition a club plays in (e.g. Premier League). PL-only
+// for the MVP (see CLAUDE.md), but Club.LeagueID is nullable and this table
+// stands on its own precisely so a second league can be added later without
+// a schema change.
+type League struct {
 	ID        uuid.UUID `json:"id"`
 	Name      string    `json:"name"`
 	ShortName *string   `json:"short_name,omitempty"`
-	CrestURL  *string   `json:"crest_url,omitempty"`
 	CreatedAt time.Time `json:"created_at"`
 }
 

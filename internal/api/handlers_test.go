@@ -86,6 +86,31 @@ func TestParseUUIDParam(t *testing.T) {
 func TestHandleListRumours_FilterParamsReachTheStore(t *testing.T) {
 	clubID := uuid.New()
 	playerID := uuid.New()
+	leagueID := uuid.New()
+
+	t.Run("league_id is parsed and passed through", func(t *testing.T) {
+		fs := &fakeStore{}
+		srv := NewServer(fs, "test-secret", nil)
+
+		w := httptest.NewRecorder()
+		srv.handleListRumours(w, httptest.NewRequest(http.MethodGet, "/api/v1/rumours?league_id="+leagueID.String(), nil))
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+		}
+		if fs.gotFilter.LeagueID == nil || *fs.gotFilter.LeagueID != leagueID {
+			t.Errorf("gotFilter.LeagueID = %v, want %v", fs.gotFilter.LeagueID, leagueID)
+		}
+	})
+
+	t.Run("malformed league_id returns 400", func(t *testing.T) {
+		srv := NewServer(&fakeStore{}, "test-secret", nil)
+		w := httptest.NewRecorder()
+		srv.handleListRumours(w, httptest.NewRequest(http.MethodGet, "/api/v1/rumours?league_id=not-a-uuid", nil))
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("status = %d, want %d", w.Code, http.StatusBadRequest)
+		}
+	})
 
 	t.Run("club_id and player_id are parsed and passed through", func(t *testing.T) {
 		fs := &fakeStore{}
@@ -116,7 +141,7 @@ func TestHandleListRumours_FilterParamsReachTheStore(t *testing.T) {
 		if w.Code != http.StatusOK {
 			t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
 		}
-		if fs.gotFilter.ClubID != nil || fs.gotFilter.PlayerID != nil {
+		if fs.gotFilter.ClubID != nil || fs.gotFilter.PlayerID != nil || fs.gotFilter.LeagueID != nil {
 			t.Errorf("gotFilter = %+v, want both nil", fs.gotFilter)
 		}
 	})
@@ -247,6 +272,81 @@ func TestHandleListPlayers(t *testing.T) {
 		srv.handleListPlayers(w, httptest.NewRequest(http.MethodGet, "/api/v1/players", nil))
 		if w.Code != http.StatusInternalServerError {
 			t.Fatalf("status = %d, want %d", w.Code, http.StatusInternalServerError)
+		}
+	})
+}
+
+func TestHandleListLeagues(t *testing.T) {
+	t.Run("returns leagues from the store", func(t *testing.T) {
+		fs := &fakeStore{leagues: []models.League{{ID: uuid.New(), Name: "Premier League"}}}
+		srv := NewServer(fs, "test-secret", nil)
+
+		w := httptest.NewRecorder()
+		srv.handleListLeagues(w, httptest.NewRequest(http.MethodGet, "/api/v1/leagues", nil))
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+		}
+		var body struct {
+			Leagues []models.League `json:"leagues"`
+		}
+		if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+			t.Fatalf("decode body: %v", err)
+		}
+		if len(body.Leagues) != 1 || body.Leagues[0].Name != "Premier League" {
+			t.Errorf("body = %+v, want one league named Premier League", body)
+		}
+	})
+
+	t.Run("store error returns 500", func(t *testing.T) {
+		srv := NewServer(&fakeStore{leaguesErr: errStoreUnavailable}, "test-secret", nil)
+		w := httptest.NewRecorder()
+		srv.handleListLeagues(w, httptest.NewRequest(http.MethodGet, "/api/v1/leagues", nil))
+		if w.Code != http.StatusInternalServerError {
+			t.Fatalf("status = %d, want %d", w.Code, http.StatusInternalServerError)
+		}
+	})
+}
+
+func TestHandleListClubs_LeagueIDFilter(t *testing.T) {
+	leagueID := uuid.New()
+
+	t.Run("league_id is parsed and passed through", func(t *testing.T) {
+		fs := &fakeStore{}
+		srv := NewServer(fs, "test-secret", nil)
+
+		w := httptest.NewRecorder()
+		srv.handleListClubs(w, httptest.NewRequest(http.MethodGet, "/api/v1/clubs?league_id="+leagueID.String(), nil))
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+		}
+		if fs.gotClubsLeagueID == nil || *fs.gotClubsLeagueID != leagueID {
+			t.Errorf("gotClubsLeagueID = %v, want %v", fs.gotClubsLeagueID, leagueID)
+		}
+	})
+
+	t.Run("absent league_id stays nil (no regression)", func(t *testing.T) {
+		fs := &fakeStore{}
+		srv := NewServer(fs, "test-secret", nil)
+
+		w := httptest.NewRecorder()
+		srv.handleListClubs(w, httptest.NewRequest(http.MethodGet, "/api/v1/clubs", nil))
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+		}
+		if fs.gotClubsLeagueID != nil {
+			t.Errorf("gotClubsLeagueID = %v, want nil", fs.gotClubsLeagueID)
+		}
+	})
+
+	t.Run("malformed league_id returns 400", func(t *testing.T) {
+		srv := NewServer(&fakeStore{}, "test-secret", nil)
+		w := httptest.NewRecorder()
+		srv.handleListClubs(w, httptest.NewRequest(http.MethodGet, "/api/v1/clubs?league_id=not-a-uuid", nil))
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("status = %d, want %d", w.Code, http.StatusBadRequest)
 		}
 	})
 }

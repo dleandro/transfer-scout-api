@@ -42,7 +42,7 @@ func TestIntegration_FollowClub_IsIdempotentAndRestoresAfterUnfollow(t *testing.
 		t.Fatalf("FollowClub (re-follow): %v", err)
 	}
 
-	clubs, err := s.ListClubs(ctx, &userID)
+	clubs, err := s.ListClubs(ctx, &userID, nil)
 	if err != nil {
 		t.Fatalf("ListClubs: %v", err)
 	}
@@ -53,7 +53,7 @@ func TestIntegration_FollowClub_IsIdempotentAndRestoresAfterUnfollow(t *testing.
 	if err := s.UnfollowClub(ctx, userID, clubID); err != nil {
 		t.Fatalf("UnfollowClub: %v", err)
 	}
-	clubs, err = s.ListClubs(ctx, &userID)
+	clubs, err = s.ListClubs(ctx, &userID, nil)
 	if err != nil {
 		t.Fatalf("ListClubs after unfollow: %v", err)
 	}
@@ -66,7 +66,7 @@ func TestIntegration_FollowClub_IsIdempotentAndRestoresAfterUnfollow(t *testing.
 	if err := s.FollowClub(ctx, userID, clubID); err != nil {
 		t.Fatalf("FollowClub (after unfollow): %v", err)
 	}
-	clubs, err = s.ListClubs(ctx, &userID)
+	clubs, err = s.ListClubs(ctx, &userID, nil)
 	if err != nil {
 		t.Fatalf("ListClubs after re-follow: %v", err)
 	}
@@ -118,7 +118,7 @@ func TestIntegration_ListClubs_FollowedByMeReflectsOnlyTheGivenViewerAndIsFalseF
 		t.Fatalf("FollowClub: %v", err)
 	}
 
-	clubsAsFollower, err := s.ListClubs(ctx, &userID1)
+	clubsAsFollower, err := s.ListClubs(ctx, &userID1, nil)
 	if err != nil {
 		t.Fatalf("ListClubs (as follower): %v", err)
 	}
@@ -126,7 +126,7 @@ func TestIntegration_ListClubs_FollowedByMeReflectsOnlyTheGivenViewerAndIsFalseF
 		t.Error("FollowedByMe = false for the user who followed it, want true")
 	}
 
-	clubsAsOther, err := s.ListClubs(ctx, &user2.ID)
+	clubsAsOther, err := s.ListClubs(ctx, &user2.ID, nil)
 	if err != nil {
 		t.Fatalf("ListClubs (as other user): %v", err)
 	}
@@ -134,7 +134,7 @@ func TestIntegration_ListClubs_FollowedByMeReflectsOnlyTheGivenViewerAndIsFalseF
 		t.Error("FollowedByMe = true for a different user, want false")
 	}
 
-	clubsAnonymous, err := s.ListClubs(ctx, nil)
+	clubsAnonymous, err := s.ListClubs(ctx, nil, nil)
 	if err != nil {
 		t.Fatalf("ListClubs (anonymous): %v", err)
 	}
