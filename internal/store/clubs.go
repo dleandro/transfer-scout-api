@@ -31,26 +31,47 @@ func (s *Store) GetOrCreateClub(ctx context.Context, name string) (uuid.UUID, er
 	return id, err
 }
 
-// ListClubs returns every club, alphabetically by name. Unbounded (no
+// ClubFeedItem is a club plus whether the viewer passed to ListClubs
+// follows it — mirrors RumourFeedItem's LikedByMe.
+type ClubFeedItem struct {
+	models.Club
+	// FollowedByMe reports whether the viewer passed to ListClubs actively
+	// follows this club. Always false for a nil (anonymous) viewer.
+	FollowedByMe bool `json:"followed_by_me"`
+}
+
+// ListClubs returns every club, alphabetically by name, plus whether
+// viewerID (nil for an anonymous caller) follows each one. Unbounded (no
 // pagination) — fine at current single-window PL scale (20 clubs); revisit
 // if this ever spans multiple windows/leagues.
-func (s *Store) ListClubs(ctx context.Context) ([]models.Club, error) {
+func (s *Store) ListClubs(ctx context.Context, viewerID *uuid.UUID) ([]ClubFeedItem, error) {
 	rows, err := s.Pool.Query(ctx, `
-		SELECT id, name, short_name, crest_url, created_at
-		FROM clubs
-		ORDER BY name`)
+		SELECT c.id, c.name, c.short_name, c.crest_url, c.created_at,
+		       EXISTS (SELECT 1 FROM follows f
+		                WHERE f.club_id = c.id AND f.user_id = $1 AND f.deleted_at IS NULL) AS followed_by_me
+		FROM clubs c
+		ORDER BY c.name`, viewerID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var clubs []models.Club
+	var clubs []ClubFeedItem
 	for rows.Next() {
-		var c models.Club
-		if err := rows.Scan(&c.ID, &c.Name, &c.ShortName, &c.CrestURL, &c.CreatedAt); err != nil {
+		var c ClubFeedItem
+		if err := rows.Scan(&c.ID, &c.Name, &c.ShortName, &c.CrestURL, &c.CreatedAt, &c.FollowedByMe); err != nil {
 			return nil, err
 		}
 		clubs = append(clubs, c)
 	}
 	return clubs, rows.Err()
+}
+
+// ClubExists reports whether a club with this id exists — mirrors
+// RumourExists, used by FollowClub/UnfollowClub-adjacent 404 checks
+// without paying for a full club fetch.
+func (s *Store) ClubExists(ctx context.Context, id uuid.UUID) (bool, error) {
+	var exists bool
+	err := s.Pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM clubs WHERE id = $1)`, id).Scan(&exists)
+	return exists, err
 }

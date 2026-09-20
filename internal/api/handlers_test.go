@@ -138,11 +138,43 @@ func TestHandleListRumours_FilterParamsReachTheStore(t *testing.T) {
 			t.Fatalf("status = %d, want %d", w.Code, http.StatusBadRequest)
 		}
 	})
+
+	t.Run("following=true reaches the store filter", func(t *testing.T) {
+		fs := &fakeStore{}
+		srv := NewServer(fs, "test-secret", nil)
+
+		w := httptest.NewRecorder()
+		srv.handleListRumours(w, httptest.NewRequest(http.MethodGet, "/api/v1/rumours?following=true", nil))
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+		}
+		if !fs.gotFilter.Following {
+			t.Error("gotFilter.Following = false, want true")
+		}
+	})
+
+	t.Run("absent following stays false (no regression)", func(t *testing.T) {
+		fs := &fakeStore{}
+		srv := NewServer(fs, "test-secret", nil)
+
+		w := httptest.NewRecorder()
+		srv.handleListRumours(w, httptest.NewRequest(http.MethodGet, "/api/v1/rumours", nil))
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+		}
+		if fs.gotFilter.Following {
+			t.Error("gotFilter.Following = true, want false when the query param is absent")
+		}
+	})
 }
 
 func TestHandleListClubs(t *testing.T) {
-	t.Run("returns clubs from the store", func(t *testing.T) {
-		fs := &fakeStore{clubs: []models.Club{{ID: uuid.New(), Name: "Arsenal"}}}
+	t.Run("returns clubs from the store, including followed_by_me", func(t *testing.T) {
+		fs := &fakeStore{clubs: []store.ClubFeedItem{
+			{Club: models.Club{ID: uuid.New(), Name: "Arsenal"}, FollowedByMe: true},
+		}}
 		srv := NewServer(fs, "test-secret", nil)
 
 		w := httptest.NewRecorder()
@@ -152,13 +184,28 @@ func TestHandleListClubs(t *testing.T) {
 			t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
 		}
 		var body struct {
-			Clubs []models.Club `json:"clubs"`
+			Clubs []store.ClubFeedItem `json:"clubs"`
 		}
 		if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
 			t.Fatalf("decode body: %v", err)
 		}
-		if len(body.Clubs) != 1 || body.Clubs[0].Name != "Arsenal" {
-			t.Errorf("body = %+v, want one club named Arsenal", body)
+		if len(body.Clubs) != 1 || body.Clubs[0].Name != "Arsenal" || !body.Clubs[0].FollowedByMe {
+			t.Errorf("body = %+v, want one club named Arsenal with followed_by_me=true", body)
+		}
+	})
+
+	t.Run("anonymous caller passes a nil viewerID through to the store", func(t *testing.T) {
+		fs := &fakeStore{}
+		srv := NewServer(fs, "test-secret", nil)
+
+		w := httptest.NewRecorder()
+		srv.handleListClubs(w, httptest.NewRequest(http.MethodGet, "/api/v1/clubs", nil))
+
+		if w.Code != http.StatusOK {
+			t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
+		}
+		if fs.gotClubsViewerID != nil {
+			t.Errorf("gotClubsViewerID = %v, want nil for an anonymous caller", fs.gotClubsViewerID)
 		}
 	})
 

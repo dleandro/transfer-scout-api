@@ -77,6 +77,16 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 // 3.4) to narrow the feed — see store.RumourFilter for matching rules.
 // A malformed UUID on either returns 400; absent params behave exactly
 // as before (no filtering).
+//
+// following=true narrows to rumours touching a club the caller follows
+// (see store.RumourFilter.Following) — any other value, or an absent
+// param, behaves as false. For an anonymous caller (no/invalid token),
+// following=true returns an empty page rather than either erroring or
+// silently falling back to the unfiltered feed: store.RumourFilter's nil-
+// viewer EXISTS check already makes this the natural result of passing
+// viewerIDFromContext through unchanged, so an anonymous "Following" tab
+// request reads as "you follow nothing" rather than leaking the public
+// feed to a caller who explicitly asked for a scoped-down view.
 func (s *Server) handleListRumours(w http.ResponseWriter, r *http.Request) {
 	limit, err := parseIntParam(r, "limit", defaultRumoursLimit)
 	if err != nil {
@@ -109,7 +119,11 @@ func (s *Server) handleListRumours(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	filter := store.RumourFilter{ClubID: clubID, PlayerID: playerID}
+	filter := store.RumourFilter{
+		ClubID:    clubID,
+		PlayerID:  playerID,
+		Following: r.URL.Query().Get("following") == "true",
+	}
 
 	items, hasMore, err := s.store.ListRumours(r.Context(), limit, offset, filter, viewerIDFromContext(r.Context()))
 	if err != nil {
@@ -159,10 +173,12 @@ func parseUUIDParam(r *http.Request, name string) (*uuid.UUID, error) {
 	return &id, nil
 }
 
-// handleListClubs returns every club, alphabetically by name — for
-// populating a filter dropdown.
+// handleListClubs returns every club, alphabetically by name, each with
+// followed_by_me for the caller (see auth.OptionalAuth in Router) — used
+// both to populate a filter dropdown and to drive a "Follow" toggle per
+// club. followed_by_me is false for an anonymous caller.
 func (s *Server) handleListClubs(w http.ResponseWriter, r *http.Request) {
-	clubs, err := s.store.ListClubs(r.Context())
+	clubs, err := s.store.ListClubs(r.Context(), viewerIDFromContext(r.Context()))
 	if err != nil {
 		http.Error(w, "failed to list clubs", http.StatusInternalServerError)
 		return
