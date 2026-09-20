@@ -35,7 +35,7 @@ type fakeStore struct {
 	createdComment   *models.Comment
 	createCommentErr error
 
-	clubs      []models.Club
+	clubs      []store.ClubFeedItem
 	clubsErr   error
 	players    []models.Player
 	playersErr error
@@ -43,17 +43,23 @@ type fakeStore struct {
 	likeRumourErr   error
 	unlikeRumourErr error
 
+	followClubErr   error
+	unfollowClubErr error
+
 	// captured args, so tests can assert what the handler actually passed
 	// through to the store (e.g. clamped pagination values).
-	gotLimit, gotOffset                 int
-	gotFilter                           store.RumourFilter
-	gotViewerID                         *uuid.UUID
-	gotID                               uuid.UUID
-	gotCommentBody                      string
-	gotCommentUserID                    uuid.UUID
-	gotCommentsLimit, gotCommentsOffset int
-	gotLikeRumourID, gotLikeUserID      uuid.UUID
-	gotUnlikeRumourID, gotUnlikeUserID  uuid.UUID
+	gotLimit, gotOffset                  int
+	gotFilter                            store.RumourFilter
+	gotViewerID                          *uuid.UUID
+	gotClubsViewerID                     *uuid.UUID
+	gotID                                uuid.UUID
+	gotCommentBody                       string
+	gotCommentUserID                     uuid.UUID
+	gotCommentsLimit, gotCommentsOffset  int
+	gotLikeRumourID, gotLikeUserID       uuid.UUID
+	gotUnlikeRumourID, gotUnlikeUserID   uuid.UUID
+	gotFollowClubID, gotFollowUserID     uuid.UUID
+	gotUnfollowClubID, gotUnfollowUserID uuid.UUID
 }
 
 var errStoreUnavailable = errors.New("store: unavailable")
@@ -66,7 +72,8 @@ func (f *fakeStore) ListRumours(ctx context.Context, limit, offset int, filter s
 	return f.rumours, f.hasMore, nil
 }
 
-func (f *fakeStore) ListClubs(ctx context.Context) ([]models.Club, error) {
+func (f *fakeStore) ListClubs(ctx context.Context, viewerID *uuid.UUID) ([]store.ClubFeedItem, error) {
+	f.gotClubsViewerID = viewerID
 	if f.clubsErr != nil {
 		return nil, f.clubsErr
 	}
@@ -130,4 +137,14 @@ func (f *fakeStore) LikeRumour(ctx context.Context, rumourID, userID uuid.UUID) 
 func (f *fakeStore) UnlikeRumour(ctx context.Context, rumourID, userID uuid.UUID) error {
 	f.gotUnlikeRumourID, f.gotUnlikeUserID = rumourID, userID
 	return f.unlikeRumourErr
+}
+
+func (f *fakeStore) FollowClub(ctx context.Context, userID, clubID uuid.UUID) error {
+	f.gotFollowUserID, f.gotFollowClubID = userID, clubID
+	return f.followClubErr
+}
+
+func (f *fakeStore) UnfollowClub(ctx context.Context, userID, clubID uuid.UUID) error {
+	f.gotUnfollowUserID, f.gotUnfollowClubID = userID, clubID
+	return f.unfollowClubErr
 }

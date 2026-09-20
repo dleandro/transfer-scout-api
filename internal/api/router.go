@@ -43,7 +43,7 @@ type Store interface {
 	ListRumours(ctx context.Context, limit, offset int, filter store.RumourFilter, viewerID *uuid.UUID) ([]store.RumourFeedItem, bool, error)
 	GetRumourByID(ctx context.Context, id uuid.UUID, viewerID *uuid.UUID) (*store.RumourFeedItem, []store.RumourEventItem, error)
 	RumourExists(ctx context.Context, id uuid.UUID) (bool, error)
-	ListClubs(ctx context.Context) ([]models.Club, error)
+	ListClubs(ctx context.Context, viewerID *uuid.UUID) ([]store.ClubFeedItem, error)
 	ListPlayers(ctx context.Context) ([]models.Player, error)
 	Ping(ctx context.Context) error
 	UpsertUser(ctx context.Context, googleSub, email, displayName, avatarURL string) (*models.User, error)
@@ -51,6 +51,8 @@ type Store interface {
 	ListComments(ctx context.Context, rumourID uuid.UUID, limit, offset int) (comments []models.Comment, hasMore bool, err error)
 	LikeRumour(ctx context.Context, rumourID, userID uuid.UUID) error
 	UnlikeRumour(ctx context.Context, rumourID, userID uuid.UUID) error
+	FollowClub(ctx context.Context, userID, clubID uuid.UUID) error
+	UnfollowClub(ctx context.Context, userID, clubID uuid.UUID) error
 }
 
 // GoogleVerifier is the subset of *auth.GoogleVerifier the API needs.
@@ -100,6 +102,8 @@ func (s *Server) Router() http.Handler {
 			r.Post("/rumours/{id}/comments", s.handleCreateComment)
 			r.Post("/rumours/{id}/like", s.handleLikeRumour)
 			r.Delete("/rumours/{id}/like", s.handleUnlikeRumour)
+			r.Post("/clubs/{id}/follow", s.handleFollowClub)
+			r.Delete("/clubs/{id}/follow", s.handleUnfollowClub)
 		})
 	})
 

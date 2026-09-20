@@ -81,9 +81,17 @@ func scanRumourFeedItem(row pgxScanner, item *RumourFeedItem) error {
 // either side of the deal (to_club_id OR from_club_id) — a fan of a
 // selling club cares about outgoing rumours too. Non-nil fields combine
 // with AND.
+//
+// Following narrows to rumours touching (either side, same as ClubID) any
+// club the viewer passed to ListRumours actively follows. It only ever
+// matches for a non-nil viewerID: the underlying EXISTS subquery compares
+// against viewerID, so Following=true with a nil (anonymous) viewer
+// matches zero rows rather than erroring or silently ignoring the filter —
+// same "nil viewer never matches" convention as LikedByMe/FollowedByMe.
 type RumourFilter struct {
-	ClubID   *uuid.UUID
-	PlayerID *uuid.UUID
+	ClubID    *uuid.UUID
+	PlayerID  *uuid.UUID
+	Following bool
 }
 
 // ListRumours returns the most recently updated rumours matching filter,
@@ -108,6 +116,14 @@ func (s *Store) ListRumours(ctx context.Context, limit, offset int, filter Rumou
 		conditions = append(conditions, fmt.Sprintf("r.player_id = $%d", argN))
 		args = append(args, *filter.PlayerID)
 		argN++
+	}
+	if filter.Following {
+		// $1 is already viewerID (see rumourFeedSelect's comment) — no new
+		// placeholder needed.
+		conditions = append(conditions, `EXISTS (
+			SELECT 1 FROM follows f
+			WHERE f.user_id = $1 AND f.deleted_at IS NULL
+			  AND (f.club_id = r.to_club_id OR f.club_id = r.from_club_id))`)
 	}
 
 	query := rumourFeedSelect
