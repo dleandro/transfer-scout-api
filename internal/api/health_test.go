@@ -42,7 +42,7 @@ func TestHandleHealth_FakeStore(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			srv := NewServer(&fakeStore{pingErr: tt.pingErr}, "test-secret", nil)
 			w := httptest.NewRecorder()
-			srv.handleHealth(w, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+			srv.handleHealth(w, httptest.NewRequest(http.MethodGet, "/health", nil))
 
 			if w.Code != tt.wantCode {
 				t.Fatalf("status = %d, want %d", w.Code, tt.wantCode)
@@ -73,7 +73,7 @@ func TestHandleHealth_DBUnreachable_Returns503(t *testing.T) {
 
 	srv := NewServer(store.New(pool), "test-secret", nil)
 	w := httptest.NewRecorder()
-	srv.handleHealth(w, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+	srv.handleHealth(w, httptest.NewRequest(http.MethodGet, "/health", nil))
 
 	if w.Code != http.StatusServiceUnavailable {
 		t.Fatalf("status = %d, want %d", w.Code, http.StatusServiceUnavailable)
@@ -104,7 +104,7 @@ func TestHandleHealth_DBReachable_Returns200(t *testing.T) {
 
 	srv := NewServer(store.New(pool), "test-secret", nil)
 	w := httptest.NewRecorder()
-	srv.handleHealth(w, httptest.NewRequest(http.MethodGet, "/healthz", nil))
+	srv.handleHealth(w, httptest.NewRequest(http.MethodGet, "/health", nil))
 
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", w.Code, http.StatusOK)
@@ -115,5 +115,19 @@ func TestHandleHealth_DBReachable_Returns200(t *testing.T) {
 	}
 	if body["status"] != "ok" {
 		t.Errorf(`body["status"] = %q, want "ok"`, body["status"])
+	}
+}
+
+// TestRouter_HealthRouteIsServed goes through Router() rather than calling
+// handleHealth directly: a correct handler proves nothing if the route is
+// registered on a path that never reaches it.
+func TestRouter_HealthRouteIsServed(t *testing.T) {
+	srv := NewServer(&fakeStore{}, "test-secret", nil)
+
+	w := httptest.NewRecorder()
+	srv.Router().ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/health", nil))
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET /health through the router = %d, want %d", w.Code, http.StatusOK)
 	}
 }
