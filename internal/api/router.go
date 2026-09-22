@@ -88,9 +88,9 @@ func (s *Server) Router() http.Handler {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(requestTimeout))
 
-	// Not /healthz: that exact path is swallowed upstream of Cloud Run and
-	// never reaches the container (it answers with an HTML 404), so a health
-	// route registered there is unreachable in production.
+	// Not /healthz: Cloud Run reserves paths ending in "z" on *.run.app, so
+	// Google's front end answers them with its own HTML 404 and the request
+	// never reaches the container.
 	r.Get("/health", s.handleHealth)
 
 	r.Route("/api/v1", func(r chi.Router) {
