@@ -1,6 +1,7 @@
 # Source reliability: outcome-based accuracy
 
-Status: approved design, not yet implemented
+Status: approved design. Implementation deliberately postponed — see
+Prerequisites.
 Date: 2026-09-22
 
 ## Problem
@@ -123,6 +124,18 @@ above SQL" and "credibility averaged in SQL" would otherwise contradict.)
 Below the threshold: show the raw fraction (`"2 of 3"`) labelled as insufficient
 data, exclude the source from rankings and from the credibility average.
 
+### Breaking a collapse does not earn back the miss
+
+When a rumour collapses, every source that reported it takes a miss — including
+the outlet that later broke the news that it had collapsed. This is deliberate,
+not a rough edge.
+
+The unit of judgement is the rumour. A source that published "Player X to Club Y"
+on a deal that died was wrong when it published, and reporting the collapse
+afterwards is good journalism that does not retroactively make the original claim
+correct. Crediting the later call would let a source launder a bad rumour by
+covering its own retraction.
+
 ### Retiring the float
 
 One migration:
@@ -146,6 +159,31 @@ The down migration can only restore the column with its `50.00` default, not the
 accumulated values. This is accepted: those values are precisely the
 untrustworthy number being replaced. The migration is therefore one-way in
 practice.
+
+## Prerequisites — why this is postponed
+
+Implementation is deliberately deferred until there is enough resolved data.
+
+`MIN_RESOLVED_FOR_RANK = 10` is likely unreachable today: the corpus is young and
+most rumours never resolve at all. If no source clears ten resolved rumours, every
+source falls below the threshold, so `credibility` would be `NULL` on every rumour
+in the feed — strictly worse than the imperfect number shown today.
+
+Before implementing, check the real distribution:
+
+```sql
+SELECT e.source_id, COUNT(DISTINCT r.id) AS resolved
+FROM rumour_events e
+JOIN rumours r ON r.id = e.rumour_id
+WHERE r.status IN ('confirmed', 'collapsed')
+GROUP BY e.source_id
+ORDER BY resolved DESC;
+```
+
+Start phase 1 when several sources clear the threshold. If the data is close but
+thin, lower the threshold rather than shipping a feed full of `NULL` credibility —
+but do not drop it low enough to put a 1-of-1 source at the top of a leaderboard,
+which is the failure this threshold exists to prevent.
 
 ## Phasing
 
@@ -175,12 +213,6 @@ Integration tests against Docker Postgres, each shown failing first:
    effect grows with the volume of junk published. Accepted deliberately for
    simplicity and fairness. Revisit by surfacing a separate *unresolved rate*
    per source rather than contaminating the headline number.
-2. **A correct collapse call is still penalised.** The unit of judgement is the
-   rumour, so when a rumour collapses every source that reported it takes a miss
-   — including the outlet that correctly broke the news that it had collapsed.
-   `rumour_events.status` already records each source's own claim, so the
-   refinement is available later: exempt (or credit) a source whose final claim
-   matched the outcome.
-3. **Timeliness and `confidence` remain unused.** Both are recorded; neither
+2. **Timeliness and `confidence` remain unused.** Both are recorded; neither
    feeds the metric. Scoop rate is a strong differentiator for a transfer
    product and is the most likely phase-4 addition.
