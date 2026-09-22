@@ -24,8 +24,8 @@ const requestTimeout = 10 * time.Second
 // database, so this is cheap insurance against scraping or accidental
 // hammering rather than an access-control mechanism. Mutating endpoints
 // (comments, reactions) get their own, stricter, per-user limiter on top
-// of this one. /healthz is deliberately excluded so Cloud Run's own
-// health probes are never throttled.
+// of this one. /health sits outside this group so health probes are never
+// throttled.
 const rumoursRateLimit = 60 // requests per minute per IP
 
 // mutationsRateLimit caps authenticated mutating requests (comments,
@@ -82,7 +82,10 @@ func (s *Server) Router() http.Handler {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Timeout(requestTimeout))
 
-	r.Get("/healthz", s.handleHealth)
+	// Not /healthz: that exact path is swallowed upstream of Cloud Run and
+	// never reaches the container (it answers with an HTML 404), so a health
+	// route registered there is unreachable in production.
+	r.Get("/health", s.handleHealth)
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Use(httprate.LimitByIP(rumoursRateLimit, time.Minute))

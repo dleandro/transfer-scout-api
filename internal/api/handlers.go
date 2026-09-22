@@ -26,9 +26,9 @@ func viewerIDFromContext(ctx context.Context) *uuid.UUID {
 	return &userID
 }
 
-// healthzTimeout bounds how long the DB ping in handleHealth can take,
+// healthTimeout bounds how long the DB ping in handleHealth can take,
 // so a slow/unreachable database doesn't hang the health check itself.
-const healthzTimeout = 2 * time.Second
+const healthTimeout = 2 * time.Second
 
 const (
 	// defaultRumoursLimit is used when the `limit` query param is absent.
@@ -43,7 +43,7 @@ const (
 // behavior (e.g. Neon) — the process can be up while the DB is not yet
 // reachable.
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithTimeout(r.Context(), healthzTimeout)
+	ctx, cancel := context.WithTimeout(r.Context(), healthTimeout)
 	defer cancel()
 
 	if err := s.store.Ping(ctx); err != nil {

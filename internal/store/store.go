@@ -16,7 +16,7 @@ func New(pool *pgxpool.Pool) *Store {
 	return &Store{Pool: pool}
 }
 
-// Ping verifies the database is reachable. Used by the API's /healthz
+// Ping verifies the database is reachable. Used by the API's /health
 // endpoint to distinguish "process is up" from "DB is reachable" — these
 // are genuinely different facts under a database with autosuspend/resume
 // behavior (e.g. Neon).
