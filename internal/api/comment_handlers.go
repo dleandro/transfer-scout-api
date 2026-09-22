@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -28,10 +29,11 @@ const (
 // clean 400 with a specific message before ever reaching the database.
 func validateCommentBody(raw string) (string, error) {
 	body := strings.TrimSpace(raw)
-	if len(body) < minCommentBodyLength {
+	length := utf8.RuneCountInString(body)
+	if length < minCommentBodyLength {
 		return "", errors.New("body must not be empty")
 	}
-	if len(body) > maxCommentBodyLength {
+	if length > maxCommentBodyLength {
 		return "", errors.New("body must be at most 2000 characters")
 	}
 	return body, nil
@@ -54,6 +56,8 @@ func (s *Server) handleCreateComment(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 		return
 	}
+
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodyBytes)
 
 	var reqBody struct {
 		Body string `json:"body"`

@@ -18,6 +18,8 @@ const authTokenTTL = 30 * 24 * time.Hour
 // only endpoint that accepts a Google ID token directly — everything else
 // authenticates via the JWT this returns.
 func (s *Server) handleGoogleAuth(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodyBytes)
+
 	var body struct {
 		IDToken string `json:"id_token"`
 	}

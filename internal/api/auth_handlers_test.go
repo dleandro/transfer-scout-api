@@ -76,6 +76,16 @@ func TestHandleGoogleAuth(t *testing.T) {
 			verifier: &fakeVerifier{claims: claims},
 			wantCode: http.StatusOK,
 		},
+		{
+			// Padding kept in an extra ignored field so the request body
+			// exceeds the cap while id_token itself stays small — otherwise
+			// this would just exercise the normal success path once decoded.
+			name:     "oversized body returns 400",
+			body:     `{"id_token":"good-token","padding":"` + strings.Repeat("a", 100*1024) + `"}`,
+			store:    &fakeStore{user: user},
+			verifier: &fakeVerifier{claims: claims},
+			wantCode: http.StatusBadRequest,
+		},
 	}
 
 	for _, tt := range tests {

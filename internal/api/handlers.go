@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/dleandro/transfer-scout-api/internal/auth"
 	"github.com/dleandro/transfer-scout-api/internal/store"
@@ -236,7 +238,11 @@ func (s *Server) handleGetRumour(w http.ResponseWriter, r *http.Request) {
 
 	item, events, err := s.store.GetRumourByID(r.Context(), id, viewerIDFromContext(r.Context()))
 	if err != nil {
-		http.Error(w, "rumour not found", http.StatusNotFound)
+		if errors.Is(err, pgx.ErrNoRows) {
+			http.Error(w, "rumour not found", http.StatusNotFound)
+			return
+		}
+		http.Error(w, "failed to get rumour", http.StatusInternalServerError)
 		return
 	}
 
