@@ -102,7 +102,7 @@ open — this file is the canonical full-detail version they link back to.
   targets: `docker-build`, `docker-up`, `docker-migrate`, `docker-ingest`,
   `docker-extract`.
 - **Acceptance criteria**: `docker compose up db api` serves
-  `/healthz`/`/api/v1/rumours` against the composed Postgres;
+  `/health`/`/api/v1/rumours` against the composed Postgres;
   `docker compose run --rm migrate` applies migrations in-container.
 - **Dependencies**: Task 1.1.
 
@@ -210,7 +210,7 @@ open — this file is the canonical full-detail version they link back to.
   local `.env`-based `API_PORT` still works as fallback.
 - **Dependencies**: none.
 
-### Task 4.2 — `/healthz` DB-connectivity check
+### Task 4.2 — `/health` DB-connectivity check
 - **Repo**: transfer-scout-api
 - **Why**: confirmed — `handleHealth` (`internal/api/handlers.go:21-23`) is
   pure liveness (`{"status":"ok"}`), no DB check. DB is only pinged once at
@@ -254,8 +254,8 @@ open — this file is the canonical full-detail version they link back to.
   `INGEST_*` on this service. `--allow-unauthenticated` (public, per the
   no-auth decision). `min-instances=0`, small `max-instances` (2–3,
   bounding Neon connections given Task 3.2's per-instance caps). Point the
-  health check at `/healthz` (Task 4.2).
-- **Acceptance criteria**: `curl <url>/healthz` → 200; `curl
+  health check at `/health` (Task 4.2).
+- **Acceptance criteria**: `curl <url>/health` → 200; `curl
   <url>/api/v1/rumours` returns a well-formed response (may be an empty
   page — see the flag under Task 5.5, rumour clustering isn't merged yet).
 - **Dependencies**: Tasks 3.1, 3.2, 4.1, 4.2, 4.3.
@@ -445,13 +445,13 @@ open — this file is the canonical full-detail version they link back to.
 - **Scope**: in `internal/api/router.go`, add chi's `middleware.Timeout`
   (~10s), `middleware.RequestID`, `middleware.RealIP` (useful behind Cloud
   Run's proxy). Add `github.com/go-chi/httprate` as a per-IP limiter (e.g.
-  60 req/min) scoped to the `/api/v1` group only — leave `/healthz`
+  60 req/min) scoped to the `/api/v1` group only — leave `/health`
   unlimited so Cloud Run's own health probes are never throttled. Skip
   request-body-size limiting (every endpoint is `GET`, no bodies); note it
   explicitly as future work for when write endpoints (predictions) exist,
   rather than adding dead code now.
 - **Acceptance criteria**: hammering `/api/v1/rumours` past the threshold
-  returns 429; `/healthz` unaffected; Task 7.1's tests still pass.
+  returns 429; `/health` unaffected; Task 7.1's tests still pass.
 - **Dependencies**: Task 7.1 (avoid interface churn mid-flight).
 
 ### Task 7.3 (optional/stretch) — Error tracking
