@@ -215,4 +215,11 @@ Integration tests against Docker Postgres, each shown failing first:
    per source rather than contaminating the headline number.
 2. **Timeliness and `confidence` remain unused.** Both are recorded; neither
    feeds the metric. Scoop rate is a strong differentiator for a transfer
-   product and is the most likely phase-4 addition.
+   product and is the most likely later addition.
+3. **"Ground truth" is LLM-extracted.** `confirmed`/`collapsed` is stamped by
+   extraction of an article, so a terminal status really means "an article
+   asserted the deal was done or dead". A mis-extraction mis-scores every source
+   on that rumour, and the error is invisible to the metric itself. This bounds
+   how much weight the number can carry — and matters more once it is user-facing
+   and sold. If accuracy claims become central to the paid tier, terminal
+   transitions deserve either a confidence floor or human spot-checking.
