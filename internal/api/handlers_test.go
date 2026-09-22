@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 
 	"github.com/dleandro/transfer-scout-api/internal/models"
 	"github.com/dleandro/transfer-scout-api/internal/store"
@@ -561,7 +562,7 @@ func TestHandleGetRumour_MalformedUUIDReturns400(t *testing.T) {
 
 func TestHandleGetRumour_NotFoundReturns404(t *testing.T) {
 	id := uuid.New()
-	fs := &fakeStore{getErr: errStoreUnavailable}
+	fs := &fakeStore{getErr: pgx.ErrNoRows}
 	srv := NewServer(fs, "test-secret", nil)
 
 	req := withURLParam(httptest.NewRequest(http.MethodGet, "/api/v1/rumours/"+id.String(), nil), "id", id.String())
@@ -570,5 +571,22 @@ func TestHandleGetRumour_NotFoundReturns404(t *testing.T) {
 
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("status = %d, want %d", w.Code, http.StatusNotFound)
+	}
+}
+
+// TestHandleGetRumour_StoreErrorReturns500 guards against a real store
+// failure (DB timeout, connection drop, scan error) being mapped to 404
+// like an actual not-found — only pgx.ErrNoRows means "not found".
+func TestHandleGetRumour_StoreErrorReturns500(t *testing.T) {
+	id := uuid.New()
+	fs := &fakeStore{getErr: errStoreUnavailable}
+	srv := NewServer(fs, "test-secret", nil)
+
+	req := withURLParam(httptest.NewRequest(http.MethodGet, "/api/v1/rumours/"+id.String(), nil), "id", id.String())
+	w := httptest.NewRecorder()
+	srv.handleGetRumour(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("status = %d, want %d", w.Code, http.StatusInternalServerError)
 	}
 }

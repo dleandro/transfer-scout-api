@@ -35,6 +35,12 @@ const rumoursRateLimit = 60 // requests per minute per IP
 // guards against.
 const mutationsRateLimit = 10 // requests per minute per user
 
+// maxRequestBodyBytes caps every JSON request body this API decodes
+// (comments, id_token) via http.MaxBytesReader — ample for both, and
+// keeps a client from making the server buffer an arbitrarily large body
+// before any validation runs.
+const maxRequestBodyBytes = 64 * 1024
+
 // Store is the subset of store.Store the API needs. Defined here (rather
 // than depending on the concrete *store.Store) so Server can be exercised
 // in tests against a fake, without a real Postgres connection — mirrors

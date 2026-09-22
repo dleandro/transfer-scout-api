@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -27,6 +28,10 @@ func TestValidateCommentBody(t *testing.T) {
 		{name: "whitespace-only is an error", body: "   ", wantErr: true},
 		{name: "exactly 2000 chars is valid", body: repeatChar("a", 2000), want: repeatChar("a", 2000)},
 		{name: "2001 chars is an error", body: repeatChar("a", 2001), wantErr: true},
+		// "é" is 2 bytes but 1 rune — 2000 of them is a legitimate
+		// 2000-character comment that the DB's char_length() CHECK
+		// accepts, but len() in bytes would wrongly reject at 4000.
+		{name: "2000 multibyte chars is valid (runes, not bytes)", body: repeatChar("é", 2000), want: repeatChar("é", 2000)},
 	}
 
 	for _, tc := range cases {
@@ -86,6 +91,33 @@ func TestHandleCreateComment_Success(t *testing.T) {
 	}
 	if fs.gotCommentBody != "great signing" {
 		t.Errorf("store called with body %q, want %q", fs.gotCommentBody, "great signing")
+	}
+}
+
+// TestHandleCreateComment_OversizedBodyReturns400 pads the request with
+// an ignored extra field so the payload exceeds the 64 KiB cap while the
+// actual "body" field stays well within the comment length limit —
+// otherwise the existing length validation alone would already 400 it,
+// masking whether the body-size cap did anything.
+func TestHandleCreateComment_OversizedBodyReturns400(t *testing.T) {
+	rumourID := uuid.New()
+	userID := uuid.New()
+	fs := &fakeStore{createdComment: &models.Comment{ID: uuid.New(), RumourID: rumourID}}
+	srv := NewServer(fs, "test-secret", nil)
+
+	token, _ := auth.IssueToken(userID, "test-secret", time.Hour)
+	oversized, _ := json.Marshal(map[string]string{
+		"body":    "hello",
+		"padding": strings.Repeat("a", 100*1024),
+	})
+	req := withURLParam(httptest.NewRequest(http.MethodPost, "/api/v1/rumours/"+rumourID.String()+"/comments", bytes.NewReader(oversized)), "id", rumourID.String())
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	w := httptest.NewRecorder()
+	auth.RequireAuth("test-secret")(http.HandlerFunc(srv.handleCreateComment)).ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want %d, body=%s", w.Code, http.StatusBadRequest, w.Body.String())
 	}
 }
 

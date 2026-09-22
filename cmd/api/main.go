@@ -4,6 +4,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -18,6 +19,21 @@ import (
 	"github.com/dleandro/transfer-scout-api/internal/store"
 )
 
+// minAuthJWTSecretLength keeps HS256 session tokens unforgeable: ParseToken
+// already pins the algorithm to HMAC, so secret entropy is the only lever
+// against brute-forcing it.
+const minAuthJWTSecretLength = 32
+
+func validateAuthSecret(secret string) error {
+	if secret == "" {
+		return errors.New("AUTH_JWT_SECRET is required")
+	}
+	if len(secret) < minAuthJWTSecretLength {
+		return fmt.Errorf("AUTH_JWT_SECRET must be at least %d characters", minAuthJWTSecretLength)
+	}
+	return nil
+}
+
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
@@ -27,8 +43,8 @@ func main() {
 	// AuthJWTSecret/GoogleClientID aren't validated in config.Load() since
 	// cmd/ingest/cmd/extract share it and never need them — cmd/api fails
 	// fast on them here instead, same spirit as DatabaseURL.
-	if cfg.AuthJWTSecret == "" {
-		slog.Error("config", "error", "AUTH_JWT_SECRET is required")
+	if err := validateAuthSecret(cfg.AuthJWTSecret); err != nil {
+		slog.Error("config", "error", err)
 		os.Exit(1)
 	}
 	if cfg.GoogleClientID == "" {
