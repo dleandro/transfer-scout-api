@@ -16,10 +16,10 @@ run-extract:
 	go run ./cmd/extract
 
 migrate-up:
-	go run ./cmd/migrate up
+	DATABASE_URL=$(DATABASE_URL_UNPOOLED) go run ./cmd/migrate up
 
 migrate-down:
-	go run ./cmd/migrate down
+	DATABASE_URL=$(DATABASE_URL_UNPOOLED) go run ./cmd/migrate down
 
 seed:
 	docker compose exec -T db psql -U $(POSTGRES_USER) -d $(POSTGRES_DB) -f - < seed/seed.sql
