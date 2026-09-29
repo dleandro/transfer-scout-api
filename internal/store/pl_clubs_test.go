@@ -77,3 +77,53 @@ func TestEveryRosterClubHasCrestAndShortName(t *testing.T) {
 		}
 	}
 }
+
+func TestCanonicalClubName(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"canonical name is unchanged", "Tottenham Hotspur", "Tottenham Hotspur"},
+		{"canonical name is case-insensitive", "tottenham hotspur", "Tottenham Hotspur"},
+		{"common alias", "Spurs", "Tottenham Hotspur"},
+		{"alias is case-insensitive", "man utd", "Manchester United"},
+		{"abbreviation with different spacing", "  Man   City  ", "Manchester City"},
+		{"and-vs-ampersand variant", "Brighton and Hove Albion", "Brighton & Hove Albion"},
+		{"trailing FC is dropped", "Arsenal FC", "Arsenal"},
+		{"trailing F.C. is dropped", "Everton F.C.", "Everton"},
+		{"leading AFC is dropped", "AFC Bournemouth", "Bournemouth"},
+		// The safety property: anything we do not recognise keeps its own
+		// identity rather than being snapped to the nearest roster club.
+		{"unknown club passes through", "Real Madrid", "Real Madrid"},
+		{"unknown club keeps its affix", "Racing Club FC", "Racing Club FC"},
+		{"unknown club is still tidied", "  Real   Madrid ", "Real Madrid"},
+		{"empty stays empty", "   ", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := canonicalClubName(tt.input); got != tt.want {
+				t.Errorf("canonicalClubName(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+// Every alias must resolve to a club that is actually on the roster.
+// Without this, an alias pointing at a name we do not carry would quietly
+// create a differently-named club row — the exact problem aliases exist to
+// prevent.
+func TestEveryAliasTargetsARosterClub(t *testing.T) {
+	for alias, canonical := range clubAliases {
+		if _, ok := rosterByLowerName[strings.ToLower(canonical)]; !ok {
+			t.Errorf("alias %q maps to %q, which is not in premierLeagueClubs", alias, canonical)
+		}
+		if alias != strings.ToLower(alias) {
+			t.Errorf("alias %q must be lower-cased; lookups are case-folded", alias)
+		}
+		if canonicalClubName(alias) != canonical {
+			t.Errorf("canonicalClubName(%q) = %q, want %q", alias, canonicalClubName(alias), canonical)
+		}
+	}
+}

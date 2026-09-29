@@ -57,6 +57,88 @@ var premierLeagueClubs = []premierLeagueClub{
 	{"Wolverhampton Wanderers", "WOL", "https://upload.wikimedia.org/wikipedia/en/f/fc/Wolverhampton_Wanderers.svg"},
 }
 
+// clubAliases maps a lower-cased alias to its canonical roster name.
+//
+// The extractor is an LLM reading football journalism, which calls Tottenham
+// "Spurs" and Manchester United "Man Utd" as a matter of course. Without
+// this, each spelling created its own club row and the same deal clustered
+// into two rumours.
+//
+// Only unambiguous, in-common-use forms are listed. This is deliberately not
+// fuzzy matching: an unrecognised name is left alone rather than snapped to
+// the nearest roster club, so a genuine non-Premier-League club keeps its own
+// identity instead of being silently absorbed. Spelling variants nobody
+// actually writes are not worth guessing at — add them when a real extraction
+// produces one.
+var clubAliases = map[string]string{
+	"spurs":                    "Tottenham Hotspur",
+	"tottenham":                "Tottenham Hotspur",
+	"man utd":                  "Manchester United",
+	"man united":               "Manchester United",
+	"manchester utd":           "Manchester United",
+	"man city":                 "Manchester City",
+	"wolves":                   "Wolverhampton Wanderers",
+	"brighton":                 "Brighton & Hove Albion",
+	"brighton and hove albion": "Brighton & Hove Albion",
+	"notts forest":             "Nottingham Forest",
+	"nott'm forest":            "Nottingham Forest",
+	"palace":                   "Crystal Palace",
+	"newcastle":                "Newcastle United",
+	"leeds":                    "Leeds United",
+	"west ham":                 "West Ham United",
+	"villa":                    "Aston Villa",
+}
+
+// rosterByLowerName indexes premierLeagueClubs by lower-cased name, mapping
+// back to the canonical spelling.
+var rosterByLowerName = func() map[string]string {
+	index := make(map[string]string, len(premierLeagueClubs))
+	for _, club := range premierLeagueClubs {
+		index[strings.ToLower(club.Name)] = club.Name
+	}
+	return index
+}()
+
+// canonicalClubName resolves a club name to the roster's spelling of it, and
+// otherwise returns the input with its whitespace tidied.
+//
+// Every rewrite has to land on a club in the roster. That is what keeps this
+// safe: a name we do not recognise — Real Madrid, some Championship side — is
+// passed through untouched rather than guessed at.
+func canonicalClubName(name string) string {
+	cleaned := strings.Join(strings.Fields(name), " ")
+	if cleaned == "" {
+		return ""
+	}
+
+	if canonical, ok := rosterByLowerName[strings.ToLower(cleaned)]; ok {
+		return canonical
+	}
+	if canonical, ok := clubAliases[strings.ToLower(cleaned)]; ok {
+		return canonical
+	}
+	// "Arsenal FC", "AFC Bournemouth": accepted only when dropping the affix
+	// lands on a roster club, never as a blanket rewrite.
+	if canonical, ok := rosterByLowerName[strings.ToLower(stripClubAffixes(cleaned))]; ok {
+		return canonical
+	}
+	return cleaned
+}
+
+// stripClubAffixes removes the club-type decorations journalism adds and
+// drops at random: a trailing FC/F.C./AFC, or a leading AFC.
+func stripClubAffixes(name string) string {
+	for _, suffix := range []string{" F.C.", " FC", " AFC"} {
+		if strings.HasSuffix(strings.ToUpper(name), strings.ToUpper(suffix)) {
+			return strings.TrimSpace(name[:len(name)-len(suffix)])
+		}
+	}
+	if strings.HasPrefix(strings.ToUpper(name), "AFC ") {
+		return strings.TrimSpace(name[len("AFC "):])
+	}
+	return name
+}
+
 // clubCrests indexes premierLeagueClubs by lower-cased name, so
 // GetOrCreateClub pays a map lookup per insert rather than a scan.
 var clubCrests = func() map[string]string {

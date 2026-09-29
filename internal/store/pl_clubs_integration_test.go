@@ -84,3 +84,63 @@ func TestIntegration_SeedClubsSQL_StampsCrestAndLeague(t *testing.T) {
 		t.Errorf("%s league_id was not backfilled by re-seeding", nulled)
 	}
 }
+
+// TestIntegration_GetOrCreateClub_ResolvesAliases is the point of the alias
+// table: the spellings journalism uses must land on the one club row, not
+// create a second one that splits the same deal across two rumours.
+func TestIntegration_GetOrCreateClub_ResolvesAliases(t *testing.T) {
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		t.Skip("DATABASE_URL not set; skipping integration test (needs a real Postgres with migrations applied)")
+	}
+
+	ctx := context.Background()
+	pool, err := db.New(ctx, dbURL)
+	if err != nil {
+		t.Fatalf("connect to test database: %v", err)
+	}
+	t.Cleanup(pool.Close)
+	s := &Store{Pool: pool}
+
+	canonical, err := s.GetOrCreateClub(ctx, "Tottenham Hotspur")
+	if err != nil {
+		t.Fatalf("get or create canonical: %v", err)
+	}
+
+	for _, spelling := range []string{"Spurs", "spurs", "  Tottenham  ", "Tottenham Hotspur FC"} {
+		got, err := s.GetOrCreateClub(ctx, spelling)
+		if err != nil {
+			t.Fatalf("get or create %q: %v", spelling, err)
+		}
+		if got != canonical {
+			t.Errorf("GetOrCreateClub(%q) = %v, want the existing row %v", spelling, got, canonical)
+		}
+	}
+
+	// The row keeps its canonical spelling, and an alias still picks up the
+	// crest and league that the roster check stamps.
+	var name string
+	var crest *string
+	var leagueID *string
+	if err := pool.QueryRow(ctx,
+		`SELECT name, crest_url, league_id::text FROM clubs WHERE id = $1`, canonical).
+		Scan(&name, &crest, &leagueID); err != nil {
+		t.Fatalf("read back club: %v", err)
+	}
+	if name != "Tottenham Hotspur" {
+		t.Errorf("club name = %q, want the canonical spelling", name)
+	}
+	if crest == nil || leagueID == nil {
+		t.Errorf("club crest_url = %v, league_id = %v; both should be stamped", crest, leagueID)
+	}
+
+	// An unrecognised club must keep its own identity rather than being
+	// absorbed into the nearest roster name.
+	foreign, err := s.GetOrCreateClub(ctx, "Real Madrid")
+	if err != nil {
+		t.Fatalf("get or create foreign club: %v", err)
+	}
+	if foreign == canonical {
+		t.Error("Real Madrid resolved to a Premier League club")
+	}
+}
