@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"strings"
 
 	"github.com/google/uuid"
 
@@ -10,10 +9,18 @@ import (
 )
 
 // GetOrCreateClub returns the ID of the club matching name
-// (case-insensitive), creating a new row if none exists. Note: this is an
-// exact match on name, not fuzzy/alias matching — "Man United" and
-// "Manchester United" would create two separate club rows. Revisit with an
-// alias table if extraction output turns out to vary enough to matter.
+// (case-insensitive), creating a new row if none exists.
+//
+// The name is first resolved through canonicalClubName, so the spellings
+// football journalism actually uses — "Spurs", "Man Utd", "Arsenal FC" —
+// land on the one roster row instead of creating a second club and
+// splitting the same deal across two rumours. Canonicalisation only ever
+// rewrites to a name on the roster; anything else passes through, so a
+// non-Premier-League club keeps its own identity.
+//
+// Resolution lives here rather than in internal/cluster because this is the
+// single funnel every caller goes through — putting it in the caller would
+// leave the next one to rediscover the problem.
 //
 // It also stamps crest_url from crestURLFor (the single source of truth for
 // crests): on insert for a newly created club, and on conflict to backfill
@@ -28,7 +35,7 @@ import (
 // in a Real Madrid -> PL move) gets no crest and no league — it stays NULL
 // rather than defaulting to the PL, which would misrepresent it.
 func (s *Store) GetOrCreateClub(ctx context.Context, name string) (uuid.UUID, error) {
-	name = strings.TrimSpace(name)
+	name = canonicalClubName(name)
 	isKnownPLClub := crestURLFor(name) != nil
 	var id uuid.UUID
 	err := s.Pool.QueryRow(ctx, `
