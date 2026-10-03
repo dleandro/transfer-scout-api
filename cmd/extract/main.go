@@ -45,7 +45,7 @@ func main() {
 	defer pool.Close()
 
 	s := store.New(pool)
-	clusterer := cluster.New(s)
+	clusterer := cluster.New(s, cfg.ExtractMinConfidence)
 
 	var extractor extract.Extractor
 	if cfg.ExtractAPIKey == "" {
@@ -63,7 +63,7 @@ func main() {
 
 	slog.Info("extract: starting batch", "articles", len(articles), "model", cfg.ExtractModel)
 
-	var extracted, clustered, failed, skipped int
+	var extracted, clustered, rejected, failed, skipped int
 	interrupted := false
 	for i, article := range articles {
 		if ctx.Err() != nil {
@@ -89,6 +89,17 @@ func main() {
 				slog.Error("extract: cluster upsert failed", "article_id", article.ID, "error", err)
 			} else if rumourID != uuid.Nil {
 				clustered++
+			} else {
+				// The gate discarded it: not a transfer rumour, or details
+				// below EXTRACT_MIN_CONFIDENCE. Logged per article so a
+				// sudden swing in this count is visible rather than hiding
+				// in the gap between extracted and clustered.
+				rejected++
+				slog.Info("extract: extraction rejected by the gate",
+					"article_id", article.ID,
+					"url", article.URL,
+					"is_transfer_rumour", result.IsTransferRumour,
+					"confidence", result.Confidence)
 			}
 		}
 
@@ -98,11 +109,11 @@ func main() {
 	}
 
 	if interrupted {
-		slog.Warn("extract: interrupted", "extracted", extracted, "clustered", clustered, "failed", failed, "skipped", skipped, "total", len(articles))
+		slog.Warn("extract: interrupted", "extracted", extracted, "clustered", clustered, "rejected", rejected, "failed", failed, "skipped", skipped, "total", len(articles))
 		os.Exit(1)
 	}
 
-	slog.Info("extract: batch complete", "extracted", extracted, "clustered", clustered, "failed", failed, "total", len(articles))
+	slog.Info("extract: batch complete", "extracted", extracted, "clustered", clustered, "rejected", rejected, "failed", failed, "total", len(articles), "min_confidence", cfg.ExtractMinConfidence)
 }
 
 // extractOne calls the model for a single article and returns the parsed

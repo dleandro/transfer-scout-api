@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 	"time"
 )
 
@@ -35,11 +34,71 @@ func NewAnthropicExtractor(apiKey, model string) *AnthropicExtractor {
 	}
 }
 
+// recordRumourTool is the schema the model must fill in. Pinning the shape
+// here rather than describing it in prose means a missing or mistyped field
+// is the API's problem, not something that silently becomes a Go zero value
+// after json.Unmarshal.
+const recordRumourTool = "record_rumour"
+
 type anthropicRequest struct {
-	Model     string             `json:"model"`
-	MaxTokens int                `json:"max_tokens"`
-	System    string             `json:"system"`
-	Messages  []anthropicMessage `json:"messages"`
+	Model      string              `json:"model"`
+	MaxTokens  int                 `json:"max_tokens"`
+	System     string              `json:"system"`
+	Messages   []anthropicMessage  `json:"messages"`
+	Tools      []anthropicTool     `json:"tools"`
+	ToolChoice anthropicToolChoice `json:"tool_choice"`
+}
+
+type anthropicTool struct {
+	Name        string         `json:"name"`
+	Description string         `json:"description"`
+	InputSchema map[string]any `json:"input_schema"`
+}
+
+// Type "tool" forces this specific tool, so the model cannot answer with
+// prose instead of a structured result.
+type anthropicToolChoice struct {
+	Type string `json:"type"`
+	Name string `json:"name"`
+}
+
+func rumourToolSchema() map[string]any {
+	return map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"is_transfer_rumour": map[string]any{
+				"type":        "boolean",
+				"description": "Whether this article reports a specific transfer rumour naming a player and a club.",
+			},
+			"player_name": map[string]any{
+				"type":        "string",
+				"description": "The player being linked with a move. Empty when is_transfer_rumour is false.",
+			},
+			"from_club_name": map[string]any{
+				"type":        []string{"string", "null"},
+				"description": "The club the player would leave, if named.",
+			},
+			"to_club_name": map[string]any{
+				"type":        "string",
+				"description": "The club the player is linked with. Empty when is_transfer_rumour is false.",
+			},
+			"status": map[string]any{
+				"type": "string",
+				"enum": []string{"rumoured", "talks", "advanced", "medical", "confirmed", "collapsed"},
+			},
+			"fee_min_eur": map[string]any{"type": []string{"number", "null"}},
+			"fee_max_eur": map[string]any{"type": []string{"number", "null"}},
+			"summary": map[string]any{
+				"type":        "string",
+				"description": "One sentence describing the rumour.",
+			},
+			"confidence": map[string]any{
+				"type":        "number",
+				"description": "0-1: how sure you are of the extracted fields. 0 when is_transfer_rumour is false.",
+			},
+		},
+		"required": []string{"is_transfer_rumour", "confidence"},
+	}
 }
 
 type anthropicMessage struct {
@@ -49,8 +108,10 @@ type anthropicMessage struct {
 
 type anthropicResponse struct {
 	Content []struct {
-		Type string `json:"type"`
-		Text string `json:"text"`
+		Type  string          `json:"type"`
+		Text  string          `json:"text"`
+		Name  string          `json:"name"`
+		Input json.RawMessage `json:"input"`
 	} `json:"content"`
 	Error *struct {
 		Type    string `json:"type"`
@@ -70,6 +131,12 @@ func (e *AnthropicExtractor) Extract(ctx context.Context, articleText string) (R
 		Messages: []anthropicMessage{
 			{Role: "user", Content: articleText},
 		},
+		Tools: []anthropicTool{{
+			Name:        recordRumourTool,
+			Description: "Record whether this article is a specific transfer rumour, and its details if so.",
+			InputSchema: rumourToolSchema(),
+		}},
+		ToolChoice: anthropicToolChoice{Type: "tool", Name: recordRumourTool},
 	})
 	if err != nil {
 		return Result{}, fmt.Errorf("extract: marshal request: %w", err)
@@ -112,15 +179,23 @@ func (e *AnthropicExtractor) Extract(ctx context.Context, articleText string) (R
 		return Result{}, fmt.Errorf("extract: model call failed: %s", msg)
 	}
 
-	if len(apiResp.Content) == 0 {
-		return Result{}, fmt.Errorf("extract: empty response content")
+	// tool_choice forces record_rumour, so a response without a tool_use
+	// block means the call did not do what was asked — worth an error rather
+	// than falling back to parsing whatever prose came back.
+	var input json.RawMessage
+	for _, block := range apiResp.Content {
+		if block.Type == "tool_use" && block.Name == recordRumourTool {
+			input = block.Input
+			break
+		}
+	}
+	if input == nil {
+		return Result{}, fmt.Errorf("extract: no %s tool_use block in response", recordRumourTool)
 	}
 
-	raw := stripCodeFence(strings.TrimSpace(apiResp.Content[0].Text))
-
 	var result Result
-	if err := json.Unmarshal([]byte(raw), &result); err != nil {
-		return Result{}, fmt.Errorf("extract: parse model JSON: %w (raw: %s)", err, truncate(raw, 500))
+	if err := json.Unmarshal(input, &result); err != nil {
+		return Result{}, fmt.Errorf("extract: parse tool input: %w (raw: %s)", err, truncate(string(input), 500))
 	}
 
 	if err := validateResult(result); err != nil {
@@ -128,16 +203,6 @@ func (e *AnthropicExtractor) Extract(ctx context.Context, articleText string) (R
 	}
 
 	return result, nil
-}
-
-func stripCodeFence(s string) string {
-	if !strings.HasPrefix(s, "```") {
-		return s
-	}
-	s = strings.TrimPrefix(s, "```json")
-	s = strings.TrimPrefix(s, "```")
-	s = strings.TrimSuffix(s, "```")
-	return strings.TrimSpace(s)
 }
 
 func truncate(s string, n int) string {
@@ -157,17 +222,26 @@ var validStatuses = map[string]bool{
 }
 
 func validateResult(r Result) error {
+	if r.Confidence < 0 || r.Confidence > 1 {
+		return fmt.Errorf("confidence %v out of range [0,1]", r.Confidence)
+	}
+
+	// Only a rumour has to name anyone. Requiring a player and a club
+	// unconditionally is what made abstaining impossible: the model had to
+	// invent names to produce a result that validated at all, and those
+	// invented rumours are what reached the database.
+	if !r.IsTransferRumour {
+		return nil
+	}
+
 	if r.PlayerName == "" {
-		return fmt.Errorf("player_name is empty")
+		return fmt.Errorf("player_name is empty for a transfer rumour")
 	}
 	if r.ToClubName == "" {
-		return fmt.Errorf("to_club_name is empty")
+		return fmt.Errorf("to_club_name is empty for a transfer rumour")
 	}
 	if !validStatuses[r.Status] {
 		return fmt.Errorf("unknown status %q", r.Status)
-	}
-	if r.Confidence < 0 || r.Confidence > 1 {
-		return fmt.Errorf("confidence %v out of range [0,1]", r.Confidence)
 	}
 	return nil
 }
