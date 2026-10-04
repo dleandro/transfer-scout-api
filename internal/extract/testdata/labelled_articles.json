@@ -1,0 +1,62 @@
+[
+  {
+    "name": "plain transfer rumour",
+    "is_transfer_rumour": true,
+    "text": "Arsenal are closing in on a deal for Sporting midfielder Morten Hjulmand, with sources indicating the Gunners have lodged an improved bid worth around 55 million euros. Talks between the clubs have accelerated this week and personal terms are said to be agreed."
+  },
+  {
+    "name": "rumour reported as all but done",
+    "is_transfer_rumour": true,
+    "text": "Manchester United have reached a full agreement with Bologna for defender Sam Beukema. The 26-year-old is expected to undergo a medical on Thursday before signing a five-year contract."
+  },
+  {
+    "name": "early speculation naming a player and club",
+    "is_transfer_rumour": true,
+    "text": "Newcastle United are understood to be monitoring Brentford forward Yoane Wissa ahead of the summer window, although no formal approach has yet been made."
+  },
+  {
+    "name": "collapsed deal is still a rumour",
+    "is_transfer_rumour": true,
+    "text": "Chelsea's pursuit of Napoli striker Victor Osimhen has collapsed. The Blues walked away after the Serie A side refused to lower their valuation, and the player is now expected to stay."
+  },
+  {
+    "name": "match report",
+    "is_transfer_rumour": false,
+    "text": "Liverpool beat Everton 2-1 at Anfield on Saturday thanks to a late header from Virgil van Dijk. Everton had taken the lead through a first-half penalty before Mohamed Salah equalised shortly after the restart."
+  },
+  {
+    "name": "contract renewal, not a move",
+    "is_transfer_rumour": false,
+    "text": "Bukayo Saka has signed a new long-term contract at Arsenal, committing his future to the club until 2030. The winger came through the academy and has made over 250 appearances."
+  },
+  {
+    "name": "transfer strategy with no player named",
+    "is_transfer_rumour": false,
+    "text": "Aston Villa are expected to prioritise defensive reinforcements in the January window as the club works within profit and sustainability rules. The recruitment team has been asked to identify value in overlooked markets."
+  },
+  {
+    "name": "manager appointment",
+    "is_transfer_rumour": false,
+    "text": "Wolverhampton Wanderers have appointed Rob Edwards as their new head coach on a three-year deal, following the dismissal of the previous manager after a run of one win in twelve."
+  },
+  {
+    "name": "season preview",
+    "is_transfer_rumour": false,
+    "text": "Our Premier League preview: who will finish in the top four? We rank every side's chances ahead of the new campaign, with the title race expected to be the closest in years."
+  },
+  {
+    "name": "club finances",
+    "is_transfer_rumour": false,
+    "text": "Tottenham Hotspur have reported record annual revenues of 550 million pounds, driven by matchday income from the stadium and a deep run in European competition."
+  },
+  {
+    "name": "a different sport",
+    "is_transfer_rumour": false,
+    "text": "The Golden State Warriors have traded their first-round pick in a three-team deal that sends the veteran guard to Miami, reshaping the Eastern Conference playoff picture."
+  },
+  {
+    "name": "round-up naming no specific deal",
+    "is_transfer_rumour": false,
+    "text": "Transfer deadline day live: all the latest news, rumours and done deals from around Europe as clubs scramble to finalise their squads before the window shuts at 11pm."
+  }
+]

@@ -36,20 +36,22 @@ type Store interface {
 }
 
 type Clusterer struct {
-	store Store
+	store         Store
+	minConfidence float64
 }
 
-func New(s Store) *Clusterer {
-	return &Clusterer{store: s}
+// New builds a Clusterer that discards extractions below minConfidence. See
+// extract.Result.Usable for what the two halves of that gate each keep out.
+func New(s Store, minConfidence float64) *Clusterer {
+	return &Clusterer{store: s, minConfidence: minConfidence}
 }
 
 // Upsert turns a single article's extraction result into a rumour +
-// timeline event, returning the rumour's ID. Extractions with confidence
-// <= 0 are skipped (per extract.SystemPrompt, that means "not actually
-// about a specific transfer rumour") — Upsert returns uuid.Nil, nil in
-// that case.
+// timeline event, returning the rumour's ID. An extraction the gate rejects
+// — not a transfer rumour, or details the model does not trust — returns
+// uuid.Nil, nil without touching the database.
 func (c *Clusterer) Upsert(ctx context.Context, articleID, sourceID uuid.UUID, result extract.Result, transferWindow string) (uuid.UUID, error) {
-	if result.Confidence <= 0 {
+	if !result.Usable(c.minConfidence) {
 		return uuid.Nil, nil
 	}
 
