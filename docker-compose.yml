@@ -32,7 +32,7 @@ services:
     ports:
       - "${API_PORT:-8080}:8080"
 
-  # ingest/extract/migrate are on-demand jobs, not always-on services —
+  # ingest/extract/pipeline/migrate are on-demand jobs, not always-on services —
   # this mirrors the Cloud Run "Service vs Job" split from
   # PRODUCTION_ROADMAP.md before it exists in GCP. `docker compose up`
   # (with no service names) skips anything in the "jobs" profile; run
@@ -58,6 +58,17 @@ services:
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-transferscout}:${POSTGRES_PASSWORD:-transferscout}@db:5432/${POSTGRES_DB:-transferscout}?sslmode=disable
     command: ["/app/extract"]
+
+  pipeline:
+    build: .
+    profiles: ["jobs"]
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-transferscout}:${POSTGRES_PASSWORD:-transferscout}@db:5432/${POSTGRES_DB:-transferscout}?sslmode=disable
+    command: ["/app/pipeline"]
 
   migrate:
     build: .
