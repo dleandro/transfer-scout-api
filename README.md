@@ -65,10 +65,9 @@ transfer rumour before paying Claude to extract it. See `.env.example`.
 |----------|---------|---------|
 | `EXTRACT_API_KEY` | empty | Anthropic key. Empty runs the stub extractor (nothing extracted). |
 | `EXTRACT_MODEL` | `claude-haiku-4-5-20251001` | Claude model that extracts player, clubs, fee and status. |
-| `EXTRACT_MIN_CONFIDENCE` | `0.4` | Floor on Claude's field confidence. Provisional, unmeasured. |
 | `TYPESAFE_API_KEY` | empty | Jev key. Required whenever `EXTRACT_API_KEY` is set; the job refuses to start without it rather than call Claude ungated. |
 | `JEV_MODEL` | `jev-1.13.0` | Pinned Jev version. Re-measure `JEV_MIN_PROBABILITY` when changing it. |
-| `JEV_MIN_PROBABILITY` | `0.5` | Jev probability an article needs to reach Claude. Placeholder, unmeasured — choose it from the eval's threshold sweep. |
+| `JEV_MIN_PROBABILITY` | `0.5` | Jev probability an article needs to reach Claude. The only rumour/not-rumour decision. Placeholder, unmeasured — choose it from the eval's threshold sweep. |
 | `EXTRACT_BASE_URL`, `TYPESAFE_BASE_URL` | empty | Endpoint overrides for local smoke runs against fake servers. |
 
 `go run ./cmd/reclassify` (dry run) / `-apply` re-checks rumours stored under

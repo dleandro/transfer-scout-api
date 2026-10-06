@@ -27,10 +27,6 @@ const (
 	maxJevBodyBytes = 24000
 )
 
-// jevInstructions and jevCriteria restate SystemPrompt's definition of a
-// transfer rumour, so the gate in front of Claude draws the same line Claude
-// was asked to draw. Jev reads instructions literally, so the boundary cases
-// are spelled out rather than implied.
 const jevInstructions = "Does the article in `title` and `body` report a specific football transfer rumour: a named player being linked with a move to a named club?"
 
 const jevCriteriaTrue = "The article names a specific player and the club he is linked with moving to. " +

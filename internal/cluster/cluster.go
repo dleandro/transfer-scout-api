@@ -6,6 +6,7 @@ package cluster
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -35,24 +36,19 @@ type Store interface {
 	NudgeSourceReliability(ctx context.Context, rumourID uuid.UUID, delta float64) error
 }
 
+var ErrIncomplete = errors.New("cluster: extraction names no player or no destination club")
+
 type Clusterer struct {
-	store         Store
-	minConfidence float64
+	store Store
 }
 
-// New builds a Clusterer that discards extractions below minConfidence. See
-// extract.Result.Usable for what the two halves of that gate each keep out.
-func New(s Store, minConfidence float64) *Clusterer {
-	return &Clusterer{store: s, minConfidence: minConfidence}
+func New(s Store) *Clusterer {
+	return &Clusterer{store: s}
 }
 
-// Upsert turns a single article's extraction result into a rumour +
-// timeline event, returning the rumour's ID. An extraction the gate rejects
-// — not a transfer rumour, or details the model does not trust — returns
-// uuid.Nil, nil without touching the database.
 func (c *Clusterer) Upsert(ctx context.Context, articleID, sourceID uuid.UUID, result extract.Result, transferWindow string) (uuid.UUID, error) {
-	if !result.Usable(c.minConfidence) {
-		return uuid.Nil, nil
+	if result.PlayerName == "" || result.ToClubName == "" {
+		return uuid.Nil, ErrIncomplete
 	}
 
 	playerID, err := c.store.GetOrCreatePlayer(ctx, result.PlayerName)

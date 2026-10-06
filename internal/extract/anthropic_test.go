@@ -3,8 +3,11 @@ package extract
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
+	"strings"
 	"testing"
 )
 
@@ -41,15 +44,12 @@ func newTestExtractor(baseURL string) *AnthropicExtractor {
 }
 
 func TestAnthropicExtractor_Extract_Success(t *testing.T) {
-	input := `{"is_transfer_rumour":true,"player_name":"Test Player","from_club_name":"Club A","to_club_name":"Club B","status":"talks","fee_min_eur":10000000,"fee_max_eur":15000000,"summary":"Test summary","confidence":0.8}`
+	input := `{"player_name":"Test Player","from_club_name":"Club A","to_club_name":"Club B","status":"talks","fee_min_eur":10000000,"fee_max_eur":15000000,"summary":"Test summary","confidence":0.8}`
 	srv := newTestServer(t, http.StatusOK, anthropicToolBody(t, input))
 
 	result, err := newTestExtractor(srv.URL).Extract(context.Background(), "some article text")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
-	}
-	if !result.IsTransferRumour {
-		t.Error("expected is_transfer_rumour to survive the round trip")
 	}
 	if result.PlayerName != "Test Player" || result.ToClubName != "Club B" || result.Status != "talks" {
 		t.Errorf("unexpected result: %+v", result)
@@ -62,39 +62,22 @@ func TestAnthropicExtractor_Extract_Success(t *testing.T) {
 	}
 }
 
-// Abstaining is a valid answer and must survive validation. Requiring a
-// player and a club unconditionally is what forced the model to invent them.
-func TestAnthropicExtractor_Extract_AbstentionAccepted(t *testing.T) {
-	input := `{"is_transfer_rumour":false,"player_name":"","from_club_name":null,"to_club_name":"","status":"","fee_min_eur":null,"fee_max_eur":null,"summary":"Match report.","confidence":0}`
+func TestAnthropicExtractor_Extract_EmptyNamesReturnedWithoutError(t *testing.T) {
+	input := `{"player_name":"","from_club_name":null,"to_club_name":"","status":"rumoured","fee_min_eur":null,"fee_max_eur":null,"summary":"s","confidence":0.2}`
 	srv := newTestServer(t, http.StatusOK, anthropicToolBody(t, input))
 
 	result, err := newTestExtractor(srv.URL).Extract(context.Background(), "text")
 	if err != nil {
-		t.Fatalf("an abstention must not be an error: %v", err)
+		t.Fatalf("empty names must reach the clusterer as an incomplete extraction, not fail: %v", err)
 	}
-	if result.IsTransferRumour {
-		t.Error("expected is_transfer_rumour false")
-	}
-	if result.Usable(0) {
-		t.Error("an abstention must never be usable, even at a zero threshold")
+	if result.PlayerName != "" || result.ToClubName != "" || result.Confidence != 0.2 {
+		t.Errorf("unexpected result: %+v", result)
 	}
 }
 
-// A result that claims to be a rumour still has to name someone.
-func TestAnthropicExtractor_Extract_RumourWithoutNamesRejected(t *testing.T) {
-	input := `{"is_transfer_rumour":true,"player_name":"","to_club_name":"","status":"rumoured","confidence":0.9}`
-	srv := newTestServer(t, http.StatusOK, anthropicToolBody(t, input))
-
-	if _, err := newTestExtractor(srv.URL).Extract(context.Background(), "text"); err == nil {
-		t.Fatal("expected an error for a rumour with no player or club")
-	}
-}
-
-// tool_choice forces the tool, so prose back means the call misbehaved —
-// better an error than silently parsing whatever text arrived.
 func TestAnthropicExtractor_Extract_TextResponseRejected(t *testing.T) {
 	body, err := json.Marshal(map[string]any{
-		"content": []map[string]any{{"type": "text", "text": `{"is_transfer_rumour":true}`}},
+		"content": []map[string]any{{"type": "text", "text": `{"player_name":"P","to_club_name":"C","status":"rumoured","summary":"s","confidence":0.5}`}},
 	})
 	if err != nil {
 		t.Fatalf("marshal fixture: %v", err)
@@ -106,15 +89,19 @@ func TestAnthropicExtractor_Extract_TextResponseRejected(t *testing.T) {
 	}
 }
 
-// The request has to actually ask for the tool, or none of the above holds.
 func TestAnthropicExtractor_Extract_SendsForcedToolSchema(t *testing.T) {
 	var got anthropicRequest
+	var raw []byte
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if err := json.NewDecoder(r.Body).Decode(&got); err != nil {
+		var err error
+		if raw, err = io.ReadAll(r.Body); err != nil {
+			t.Errorf("read request: %v", err)
+		}
+		if err := json.Unmarshal(raw, &got); err != nil {
 			t.Errorf("decode request: %v", err)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(anthropicToolBody(t, `{"is_transfer_rumour":false,"confidence":0}`)))
+		_, _ = w.Write([]byte(anthropicToolBody(t, `{"player_name":"P","to_club_name":"C","status":"rumoured","confidence":0.5}`)))
 	}))
 	t.Cleanup(srv.Close)
 
@@ -129,16 +116,21 @@ func TestAnthropicExtractor_Extract_SendsForcedToolSchema(t *testing.T) {
 		t.Errorf("expected tool_choice to force %s, got %+v", recordRumourTool, got.ToolChoice)
 	}
 	required, ok := got.Tools[0].InputSchema["required"].([]any)
-	if !ok || len(required) == 0 {
+	if !ok {
 		t.Fatalf("expected required fields in the schema, got %v", got.Tools[0].InputSchema["required"])
 	}
-	if required[0] != "is_transfer_rumour" {
-		t.Errorf("is_transfer_rumour must be required, got %v", required)
+	for _, field := range []string{"player_name", "to_club_name", "status", "confidence"} {
+		if !slices.Contains(required, any(field)) {
+			t.Errorf("%s must be required, got %v", field, required)
+		}
+	}
+	if strings.Contains(string(raw), "is_transfer_rumour") {
+		t.Errorf("the request must not ask Claude to classify the article, got %s", raw)
 	}
 }
 
 func TestAnthropicExtractor_Extract_InvalidStatusRejected(t *testing.T) {
-	input := `{"is_transfer_rumour":true,"player_name":"P","to_club_name":"C","status":"not-a-real-status","summary":"s","confidence":0.5}`
+	input := `{"player_name":"P","to_club_name":"C","status":"not-a-real-status","summary":"s","confidence":0.5}`
 	srv := newTestServer(t, http.StatusOK, anthropicToolBody(t, input))
 
 	if _, err := newTestExtractor(srv.URL).Extract(context.Background(), "text"); err == nil {
@@ -147,7 +139,7 @@ func TestAnthropicExtractor_Extract_InvalidStatusRejected(t *testing.T) {
 }
 
 func TestAnthropicExtractor_Extract_ConfidenceOutOfRangeRejected(t *testing.T) {
-	input := `{"is_transfer_rumour":true,"player_name":"P","to_club_name":"C","status":"rumoured","summary":"s","confidence":1.5}`
+	input := `{"player_name":"P","to_club_name":"C","status":"rumoured","summary":"s","confidence":1.5}`
 	srv := newTestServer(t, http.StatusOK, anthropicToolBody(t, input))
 
 	if _, err := newTestExtractor(srv.URL).Extract(context.Background(), "text"); err == nil {

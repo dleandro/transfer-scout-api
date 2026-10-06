@@ -41,8 +41,6 @@ type ExtractStore interface {
 	MarkExtracted(ctx context.Context, id uuid.UUID, extractionJSON []byte) error
 }
 
-// Upserter turns one extraction into a rumour; *cluster.Clusterer satisfies
-// it. uuid.Nil with a nil error means the gate rejected the extraction.
 type Upserter interface {
 	Upsert(ctx context.Context, articleID, sourceID uuid.UUID, result extract.Result, transferWindow string) (uuid.UUID, error)
 }
@@ -54,29 +52,22 @@ type ExtractDeps struct {
 	Clusterer      Upserter
 	TransferWindow string
 	// MaxArticles caps how many articles one run sends to the extractor.
-	MaxArticles int
-	// Model and MinConfidence are only logged.
-	Model         string
-	MinConfidence float64
+	MaxArticles       int
+	Model             string
+	JevMinProbability float64
 }
 
-// ExtractStats are the per-run totals logged as "extract: batch complete".
 type ExtractStats struct {
-	Batches   int
-	Extracted int
-	Clustered int
-	Rejected  int
-	Failed    int
-	// Total is how many articles were sent to the extractor this run.
-	Total int
-	// Unmarked counts articles whose MarkExtracted failed; they stay queued.
-	Unmarked int
-	// Skipped counts articles listed but not attempted because the run was
-	// interrupted.
-	Skipped int
-	// Capped is true when MaxArticles stopped the run with articles still
-	// queued.
-	Capped bool
+	Batches    int
+	Extracted  int
+	Clustered  int
+	Rejected   int
+	Incomplete int
+	Failed     int
+	Total      int
+	Unmarked   int
+	Skipped    int
+	Capped     bool
 }
 
 // NewExtractor builds the extractor the config asks for: the stub when no
@@ -94,13 +85,13 @@ func NewExtractDeps(cfg config.Config, s *store.Store) (ExtractDeps, error) {
 		return ExtractDeps{}, err
 	}
 	return ExtractDeps{
-		Store:          s,
-		Extractor:      extractor,
-		Clusterer:      cluster.New(s, cfg.ExtractMinConfidence),
-		TransferWindow: cfg.TransferWindow,
-		MaxArticles:    cfg.ExtractMaxArticlesPerRun,
-		Model:          cfg.ExtractModel,
-		MinConfidence:  cfg.ExtractMinConfidence,
+		Store:             s,
+		Extractor:         extractor,
+		Clusterer:         cluster.New(s),
+		TransferWindow:    cfg.TransferWindow,
+		MaxArticles:       cfg.ExtractMaxArticlesPerRun,
+		Model:             cfg.ExtractModel,
+		JevMinProbability: cfg.JevMinProbability,
 	}, nil
 }
 
@@ -198,12 +189,13 @@ drain:
 		"extracted", st.Extracted,
 		"clustered", st.Clustered,
 		"rejected", st.Rejected,
+		"incomplete", st.Incomplete,
 		"failed", st.Failed,
 		"total", st.Total,
 		"batches", st.Batches,
 		"unmarked", st.Unmarked,
 		"capped", st.Capped,
-		"min_confidence", d.MinConfidence)
+		"jev_min_probability", d.JevMinProbability)
 	return st, nil
 }
 
@@ -212,6 +204,7 @@ func interrupted(st ExtractStats, err error) error {
 		"extracted", st.Extracted,
 		"clustered", st.Clustered,
 		"rejected", st.Rejected,
+		"incomplete", st.Incomplete,
 		"failed", st.Failed,
 		"skipped", st.Skipped,
 		"total", st.Total,
@@ -219,8 +212,6 @@ func interrupted(st ExtractStats, err error) error {
 	return fmt.Errorf("extract: interrupted: %w", err)
 }
 
-// extractOne runs one article through the extractor and the clusterer and
-// marks it processed, tallying the outcome into st.
 func extractOne(ctx context.Context, d ExtractDeps, article models.Article, st *ExtractStats) {
 	text := article.Title
 	if article.Content != nil && *article.Content != "" {
@@ -239,27 +230,46 @@ func extractOne(ctx context.Context, d ExtractDeps, article models.Article, st *
 			extractionJSON = nil
 		}
 
-		rumourID, err := d.Clusterer.Upsert(ctx, article.ID, article.SourceID, result, d.TransferWindow)
-		if err != nil {
-			slog.Error("extract: cluster upsert failed", "article_id", article.ID, "error", err)
-		} else if rumourID != uuid.Nil {
-			st.Clustered++
-		} else {
-			// The gate discarded it: not a transfer rumour, or details
-			// below EXTRACT_MIN_CONFIDENCE. Logged per article so a
-			// sudden swing in this count is visible rather than hiding
-			// in the gap between extracted and clustered.
-			st.Rejected++
-			slog.Info("extract: extraction rejected by the gate",
-				"article_id", article.ID,
-				"url", article.URL,
-				"is_transfer_rumour", result.IsTransferRumour,
-				"confidence", result.Confidence)
-		}
+		clusterOne(ctx, d, article, result, st)
 	}
 
 	if err := d.Store.MarkExtracted(ctx, article.ID, extractionJSON); err != nil {
 		st.Unmarked++
 		slog.Error("extract: mark processed", "article_id", article.ID, "error", err)
 	}
+}
+
+func clusterOne(ctx context.Context, d ExtractDeps, article models.Article, result extract.Result, st *ExtractStats) {
+	if result.RejectedByJev {
+		st.Rejected++
+		slog.Info("extract: extraction rejected by the gate",
+			"article_id", article.ID,
+			"url", article.URL,
+			"jev_probability", jevProbability(result),
+			"jev_model", result.JevModel)
+		return
+	}
+
+	_, err := d.Clusterer.Upsert(ctx, article.ID, article.SourceID, result, d.TransferWindow)
+	switch {
+	case errors.Is(err, cluster.ErrIncomplete):
+		st.Incomplete++
+		slog.Info("extract: extraction incomplete, not stored",
+			"article_id", article.ID,
+			"url", article.URL,
+			"player_name", result.PlayerName,
+			"to_club_name", result.ToClubName,
+			"confidence", result.Confidence)
+	case err != nil:
+		slog.Error("extract: cluster upsert failed", "article_id", article.ID, "error", err)
+	default:
+		st.Clustered++
+	}
+}
+
+func jevProbability(r extract.Result) any {
+	if r.JevProbability == nil {
+		return nil
+	}
+	return *r.JevProbability
 }

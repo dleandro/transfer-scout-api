@@ -66,13 +66,9 @@ func rumourToolSchema() map[string]any {
 	return map[string]any{
 		"type": "object",
 		"properties": map[string]any{
-			"is_transfer_rumour": map[string]any{
-				"type":        "boolean",
-				"description": "Whether this article reports a specific transfer rumour naming a player and a club.",
-			},
 			"player_name": map[string]any{
 				"type":        "string",
-				"description": "The player being linked with a move. Empty when is_transfer_rumour is false.",
+				"description": "The player being linked with a move, as named in the article. Empty if the article names none.",
 			},
 			"from_club_name": map[string]any{
 				"type":        []string{"string", "null"},
@@ -80,7 +76,7 @@ func rumourToolSchema() map[string]any {
 			},
 			"to_club_name": map[string]any{
 				"type":        "string",
-				"description": "The club the player is linked with. Empty when is_transfer_rumour is false.",
+				"description": "The club the player is linked with, as named in the article. Empty if the article names none.",
 			},
 			"status": map[string]any{
 				"type": "string",
@@ -94,10 +90,10 @@ func rumourToolSchema() map[string]any {
 			},
 			"confidence": map[string]any{
 				"type":        "number",
-				"description": "0-1: how sure you are of the extracted fields. 0 when is_transfer_rumour is false.",
+				"description": "0-1: how sure you are of the extracted fields.",
 			},
 		},
-		"required": []string{"is_transfer_rumour", "confidence"},
+		"required": []string{"player_name", "to_club_name", "status", "confidence"},
 	}
 }
 
@@ -133,7 +129,7 @@ func (e *AnthropicExtractor) Extract(ctx context.Context, articleText string) (R
 		},
 		Tools: []anthropicTool{{
 			Name:        recordRumourTool,
-			Description: "Record whether this article is a specific transfer rumour, and its details if so.",
+			Description: "Record the details of the transfer rumour this article reports.",
 			InputSchema: rumourToolSchema(),
 		}},
 		ToolChoice: anthropicToolChoice{Type: "tool", Name: recordRumourTool},
@@ -224,21 +220,6 @@ var validStatuses = map[string]bool{
 func validateResult(r Result) error {
 	if r.Confidence < 0 || r.Confidence > 1 {
 		return fmt.Errorf("confidence %v out of range [0,1]", r.Confidence)
-	}
-
-	// Only a rumour has to name anyone. Requiring a player and a club
-	// unconditionally is what made abstaining impossible: the model had to
-	// invent names to produce a result that validated at all, and those
-	// invented rumours are what reached the database.
-	if !r.IsTransferRumour {
-		return nil
-	}
-
-	if r.PlayerName == "" {
-		return fmt.Errorf("player_name is empty for a transfer rumour")
-	}
-	if r.ToClubName == "" {
-		return fmt.Errorf("to_club_name is empty for a transfer rumour")
 	}
 	if !validStatuses[r.Status] {
 		return fmt.Errorf("unknown status %q", r.Status)
