@@ -49,6 +49,24 @@ backend, priority) and `transfer-scout-web` (Next.js frontend, later).
 - LLM extraction contract lives in `internal/extract/extract.go` —
   `SystemPrompt` + `Result` struct. The model returns structured JSON per
   article (player, from/to club, status, fee range, summary, confidence).
+- Extraction is gated: `extract.GatedExtractor` first asks Jev (TypeSafe
+  System One, `internal/extract/jev.go`, a hand-rolled HTTP client — there
+  is no Go SDK) a single Noul question restating `SystemPrompt`'s definition
+  of a transfer rumour, with the article as a `{title, body}` state (body
+  truncated to 24 KB). Below `JEV_MIN_PROBABILITY` the article is recorded
+  as not a rumour and Claude is never called; at or above it, Claude
+  extracts as before. Jev's probability and the versioned model id that
+  answered are stored on the extraction JSON (`jev_probability`,
+  `jev_model`) for later auditing. A Jev error fails the article — it never
+  falls through to Claude; like every extraction failure,
+  `pipeline.RunExtract` then marks it processed with a NULL extraction (not
+  retried automatically). Both `cmd/pipeline` and `cmd/extract` get the
+  gate from `pipeline.NewExtractor` → `extract.NewFromConfig`; with
+  `EXTRACT_API_KEY` set and `TYPESAFE_API_KEY` empty, both refuse to
+  start. `JEV_MODEL` is pinned to `jev-1.13.0`, and
+  `JEV_MIN_PROBABILITY` (default 0.5) is an unmeasured placeholder: set it
+  from the threshold sweep printed by `TestEval_JevGateClassifiesLabelledArticles`
+  (`TYPESAFE_API_KEY=... go test ./internal/extract/ -run TestEval -v`).
 - PL only for the MVP. Current window: `summer-2026` (`TRANSFER_WINDOW` env
   var, defaults to this in `internal/config`).
 
