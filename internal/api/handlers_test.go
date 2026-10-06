@@ -9,7 +9,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 
 	"github.com/dleandro/transfer-scout-api/internal/models"
 	"github.com/dleandro/transfer-scout-api/internal/store"
@@ -562,7 +561,7 @@ func TestHandleGetRumour_MalformedUUIDReturns400(t *testing.T) {
 
 func TestHandleGetRumour_NotFoundReturns404(t *testing.T) {
 	id := uuid.New()
-	fs := &fakeStore{getErr: pgx.ErrNoRows}
+	fs := &fakeStore{getErr: store.ErrRumourNotFound}
 	srv := NewServer(fs, "test-secret", nil)
 
 	req := withURLParam(httptest.NewRequest(http.MethodGet, "/api/v1/rumours/"+id.String(), nil), "id", id.String())
@@ -576,7 +575,7 @@ func TestHandleGetRumour_NotFoundReturns404(t *testing.T) {
 
 // TestHandleGetRumour_StoreErrorReturns500 guards against a real store
 // failure (DB timeout, connection drop, scan error) being mapped to 404
-// like an actual not-found — only pgx.ErrNoRows means "not found".
+// like an actual not-found — only store.ErrRumourNotFound means "not found".
 func TestHandleGetRumour_StoreErrorReturns500(t *testing.T) {
 	id := uuid.New()
 	fs := &fakeStore{getErr: errStoreUnavailable}

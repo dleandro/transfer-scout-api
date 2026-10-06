@@ -11,7 +11,6 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 
 	"github.com/dleandro/transfer-scout-api/internal/auth"
 	"github.com/dleandro/transfer-scout-api/internal/store"
@@ -238,7 +237,7 @@ func (s *Server) handleGetRumour(w http.ResponseWriter, r *http.Request) {
 
 	item, events, err := s.store.GetRumourByID(r.Context(), id, viewerIDFromContext(r.Context()))
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, store.ErrRumourNotFound) {
 			http.Error(w, "rumour not found", http.StatusNotFound)
 			return
 		}

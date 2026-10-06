@@ -24,7 +24,7 @@ import (
 func TestIntegration_SeedClubsSQL_StampsCrestAndLeague(t *testing.T) {
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		t.Skip("DATABASE_URL not set; skipping integration test (needs a real Postgres with migrations applied)")
+		t.Skip("DATABASE_URL not set; skipping integration test (needs a real Postgres with migrations applied and seed/seed.sql loaded)")
 	}
 
 	ctx := context.Background()
@@ -91,7 +91,7 @@ func TestIntegration_SeedClubsSQL_StampsCrestAndLeague(t *testing.T) {
 func TestIntegration_GetOrCreateClub_ResolvesAliases(t *testing.T) {
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		t.Skip("DATABASE_URL not set; skipping integration test (needs a real Postgres with migrations applied)")
+		t.Skip("DATABASE_URL not set; skipping integration test (needs a real Postgres with migrations applied and seed/seed.sql loaded)")
 	}
 
 	ctx := context.Background()

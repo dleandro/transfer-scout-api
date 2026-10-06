@@ -2,6 +2,7 @@ package store_test
 
 import (
 	"context"
+	"errors"
 	"os"
 	"strings"
 	"testing"
@@ -14,14 +15,16 @@ import (
 )
 
 // newTestStore connects to a real Postgres instance via DATABASE_URL (see
-// .env.example) with migrations already applied. It skips rather than
-// fails when DATABASE_URL is unset, so `go test ./...` still passes
-// without a database running (e.g. a bare CI without services).
+// .env.example) with migrations applied AND seed/seed.sql loaded — several
+// tests need the seeded sources and clubs, which migrations don't create.
+// It skips rather than fails when DATABASE_URL is unset, so
+// `go test ./...` still passes without a database running (e.g. a bare CI
+// without services).
 func newTestStore(t *testing.T) *store.Store {
 	t.Helper()
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		t.Skip("DATABASE_URL not set; skipping integration test (needs a real Postgres with migrations applied)")
+		t.Skip("DATABASE_URL not set; skipping integration test (needs a real Postgres with migrations applied and seed/seed.sql loaded)")
 	}
 	pool, err := db.New(context.Background(), dbURL)
 	if err != nil {
@@ -326,6 +329,18 @@ func TestIntegration_UpsertRumour_ClustersStatusForwardOnlyAndWidensFeeRange(t *
 	}
 	if item.Credibility == nil {
 		t.Error("expected credibility to be non-nil once the rumour has a contributing source")
+	}
+}
+
+// TestIntegration_GetRumourByID_UnknownRumourReturnsErrRumourNotFound pins
+// the store's translation of pgx.ErrNoRows: the handler 404s on
+// store.ErrRumourNotFound only, so a raw pgx error leaking out here would
+// turn GET /api/v1/rumours/{unknown-id} into a 500.
+func TestIntegration_GetRumourByID_UnknownRumourReturnsErrRumourNotFound(t *testing.T) {
+	s := newTestStore(t)
+
+	if _, _, err := s.GetRumourByID(context.Background(), uuid.New(), nil); !errors.Is(err, store.ErrRumourNotFound) {
+		t.Errorf("GetRumourByID against unknown rumour: err = %v, want ErrRumourNotFound", err)
 	}
 }
 

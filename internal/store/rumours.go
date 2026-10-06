@@ -198,10 +198,14 @@ type RumourEventItem struct {
 // GetRumourByID returns a single rumour (enriched with player/club
 // names and crests) and its full event timeline, oldest first, each
 // event enriched with its source name and article URL/title. viewerID
-// (nil for an anonymous caller) controls the item's LikedByMe.
+// (nil for an anonymous caller) controls the item's LikedByMe. Returns
+// ErrRumourNotFound when no rumour has this id.
 func (s *Store) GetRumourByID(ctx context.Context, id uuid.UUID, viewerID *uuid.UUID) (*RumourFeedItem, []RumourEventItem, error) {
 	var item RumourFeedItem
 	if err := scanRumourFeedItem(s.Pool.QueryRow(ctx, rumourFeedSelect+` WHERE r.id = $2`, viewerID, id), &item); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil, ErrRumourNotFound
+		}
 		return nil, nil, err
 	}
 

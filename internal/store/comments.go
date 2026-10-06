@@ -15,9 +15,11 @@ import (
 // constraint violation. See https://www.postgresql.org/docs/current/errcodes-appendix.html
 const pgForeignKeyViolation = "23503"
 
-// ErrRumourNotFound is returned by CreateComment when rumour_id doesn't
-// reference a real rumour, so the handler can map it to a 404 instead of
-// a generic 500.
+// ErrRumourNotFound is returned by any store method given a rumour id that
+// doesn't reference a real rumour (GetRumourByID, CreateComment,
+// LikeRumour, UnlikeRumour), so the handler can map it to a 404 instead of
+// a generic 500. Store methods translate pgx.ErrNoRows and foreign-key
+// violations into it; callers outside this package never see pgx errors.
 var ErrRumourNotFound = errors.New("store: rumour not found")
 
 const commentColumns = "comments.id, comments.rumour_id, comments.body, comments.created_at, comments.updated_at, users.id, users.display_name, users.avatar_url"
