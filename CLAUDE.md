@@ -67,6 +67,15 @@ backend, priority) and `transfer-scout-web` (Next.js frontend, later).
   `JEV_MIN_PROBABILITY` (default 0.5) is an unmeasured placeholder: set it
   from the threshold sweep printed by `TestEval_JevGateClassifiesLabelledArticles`
   (`TYPESAFE_API_KEY=... go test ./internal/extract/ -run TestEval -v`).
+- `cmd/reclassify` is a one-off, not an application binary: it re-judges
+  rumours created before `-before` (default 2026-09-12, the day after the
+  old "confidence > 0" corpus was frozen) with the Jev classifier only — no
+  Claude — and marks a rumour DELETE when every article linked to it via
+  `rumour_events` is below `JEV_MIN_PROBABILITY`. Rumours with no linked
+  articles are kept. Dry run by default; `-apply` deletes in one
+  transaction (`store.DeleteRumours`), cascading rumour_events, comments
+  and likes; articles are never deleted. Any Jev error aborts before
+  deleting. Run it only after `JEV_MIN_PROBABILITY` has been measured.
 - PL only for the MVP. Current window: `summer-2026` (`TRANSFER_WINDOW` env
   var, defaults to this in `internal/config`).
 
