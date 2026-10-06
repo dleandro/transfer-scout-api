@@ -13,12 +13,6 @@ type Config struct {
 	APIPort       string
 	ExtractModel  string
 	ExtractAPIKey string
-	// ExtractMinConfidence is the floor an extraction's self-reported
-	// field confidence must clear before it is stored. Provisional: the
-	// value that belongs here has to come from measuring a labelled set
-	// (see extract/testdata), not from taste. The is_transfer_rumour
-	// boolean, not this number, is what keeps non-rumours out.
-	ExtractMinConfidence float64
 	// ExtractMaxArticlesPerRun bounds how many articles one extract run
 	// sends to the model. The run drains the queue in batches until it is
 	// empty or this cap is reached, so it is the per-run cost and duration
@@ -33,11 +27,7 @@ type Config struct {
 	TypesafeAPIKey string
 	// JevModel is pinned to a version, not jev-latest: JevMinProbability
 	// is only meaningful for the version it was measured against.
-	JevModel string
-	// JevMinProbability is the Jev probability an article must reach to be
-	// sent to Claude. Provisional and unmeasured, like
-	// ExtractMinConfidence: pick it from the threshold sweep that
-	// internal/extract/eval_test.go prints, not from taste.
+	JevModel          string
 	JevMinProbability float64
 	// JevBaseURL overrides the TypeSafe endpoint; empty means the real API.
 	JevBaseURL     string
@@ -59,7 +49,6 @@ func Load() (Config, error) {
 		APIPort:                  getEnv("PORT", getEnv("API_PORT", "8080")),
 		ExtractModel:             getEnv("EXTRACT_MODEL", "claude-haiku-4-5-20251001"),
 		ExtractAPIKey:            getEnv("EXTRACT_API_KEY", ""),
-		ExtractMinConfidence:     getEnvFloat("EXTRACT_MIN_CONFIDENCE", defaultExtractMinConfidence),
 		ExtractMaxArticlesPerRun: getEnvPositiveInt("EXTRACT_MAX_ARTICLES_PER_RUN", defaultExtractMaxArticlesPerRun),
 		ExtractBaseURL:           getEnv("EXTRACT_BASE_URL", ""),
 		TypesafeAPIKey:           getEnv("TYPESAFE_API_KEY", ""),
@@ -84,13 +73,6 @@ func getEnv(key, fallback string) string {
 	}
 	return fallback
 }
-
-// defaultExtractMinConfidence is low on purpose. The classification boolean
-// is what rejects non-rumours; this floor only drops rumours whose details
-// the model itself distrusts, and setting it high without having measured a
-// labelled set would silently discard real rumours to fix a problem it was
-// never the cause of.
-const defaultExtractMinConfidence = 0.4
 
 // DefaultJevModel is pinned to a version, not jev-latest: a threshold
 // measured against one version says nothing about the next, and the alias

@@ -48,14 +48,21 @@ backend, priority) and `transfer-scout-web` (Next.js frontend, later).
   further.
 - LLM extraction contract lives in `internal/extract/extract.go` —
   `SystemPrompt` + `Result` struct. The model returns structured JSON per
-  article (player, from/to club, status, fee range, summary, confidence).
-- Extraction is gated: `extract.GatedExtractor` first asks Jev (TypeSafe
-  System One, `internal/extract/jev.go`, a hand-rolled HTTP client — there
-  is no Go SDK) a single Noul question restating `SystemPrompt`'s definition
-  of a transfer rumour, with the article as a `{title, body}` state (body
-  truncated to 24 KB). Below `JEV_MIN_PROBABILITY` the article is recorded
-  as not a rumour and Claude is never called; at or above it, Claude
-  extracts as before. Jev's probability and the versioned model id that
+  article (player, from/to club, status, fee range, summary, confidence)
+  through the forced `record_rumour` tool.
+- Jev alone decides whether an article is a transfer rumour
+  (dec_01M49N3XN64R3J2T1F9M6GW3QD). `extract.GatedExtractor` first asks Jev
+  (TypeSafe System One, `internal/extract/jev.go`, a hand-rolled HTTP
+  client — there is no Go SDK) a single Noul question defining a transfer
+  rumour, with the article as a `{title, body}` state (body truncated to
+  24 KB). Below `JEV_MIN_PROBABILITY` the article is recorded with
+  `rejected_by_jev: true` and Claude is never called; at or above it,
+  Claude is told the article is a transfer rumour and only fills in the
+  fields — it never classifies or rejects, and its `confidence` is stored as
+  data, not used as a filter. The one remaining skip is structural: an
+  extraction with an empty `player_name` or `to_club_name` is not stored
+  (`cluster.ErrIncomplete`), counted as `incomplete` in
+  `extract: batch complete`, apart from Jev's `rejected`. Jev's probability and the versioned model id that
   answered are stored on the extraction JSON (`jev_probability`,
   `jev_model`) for later auditing. A Jev error fails the article — it never
   falls through to Claude; like every extraction failure,

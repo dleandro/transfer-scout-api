@@ -19,10 +19,6 @@ type GatedExtractor struct {
 	MinProbability float64
 }
 
-// Extract implements Extractor. A classifier error is returned as-is — it
-// never falls through to Extractor, because an unguarded call is exactly the
-// spend the gate exists to prevent. A failed article is not a stored rumour;
-// pipeline.RunExtract records it with a NULL extraction.
 func (g *GatedExtractor) Extract(ctx context.Context, articleText string) (Result, error) {
 	title, body := splitArticleText(articleText)
 	c, err := g.Classifier.Classify(ctx, title, body)
@@ -32,7 +28,7 @@ func (g *GatedExtractor) Extract(ctx context.Context, articleText string) (Resul
 	probability := c.Probability
 
 	if probability < g.MinProbability {
-		return Result{IsTransferRumour: false, JevProbability: &probability, JevModel: c.Model}, nil
+		return Result{RejectedByJev: true, JevProbability: &probability, JevModel: c.Model}, nil
 	}
 
 	result, err := g.Extractor.Extract(ctx, articleText)

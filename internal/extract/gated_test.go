@@ -12,11 +12,15 @@ import (
 	"github.com/dleandro/transfer-scout-api/internal/config"
 )
 
-// countingAnthropic is a fake Messages API that counts how often it is paid.
 func countingAnthropic(t *testing.T) (*httptest.Server, *atomic.Int32) {
 	t.Helper()
+	return countingAnthropicWith(t, `{"player_name":"Morten Hjulmand","to_club_name":"Arsenal","status":"talks","summary":"s","confidence":0.8}`)
+}
+
+func countingAnthropicWith(t *testing.T, toolInput string) (*httptest.Server, *atomic.Int32) {
+	t.Helper()
 	var calls atomic.Int32
-	body := anthropicToolBody(t, `{"is_transfer_rumour":true,"player_name":"Morten Hjulmand","to_club_name":"Arsenal","status":"talks","summary":"s","confidence":0.8}`)
+	body := anthropicToolBody(t, toolInput)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls.Add(1)
 		w.Header().Set("Content-Type", "application/json")
@@ -45,8 +49,8 @@ func TestGatedExtractor_BelowThresholdSkipsClaude(t *testing.T) {
 	if n := claudeCalls.Load(); n != 0 {
 		t.Errorf("Anthropic got %d calls, want 0 below the threshold", n)
 	}
-	if result.IsTransferRumour || result.Usable(0) {
-		t.Errorf("result = %+v, want a non-rumour", result)
+	if !result.RejectedByJev {
+		t.Errorf("result = %+v, want it rejected by Jev", result)
 	}
 	if result.JevProbability == nil || *result.JevProbability != 0.12 || result.JevModel != "jev-1.13.0" {
 		t.Errorf("gate verdict not recorded: probability=%v model=%q", result.JevProbability, result.JevModel)
@@ -76,7 +80,7 @@ func TestGatedExtractor_AtOrAboveThresholdCallsClaude(t *testing.T) {
 			if n := claudeCalls.Load(); n != 1 {
 				t.Errorf("Anthropic got %d calls, want 1", n)
 			}
-			if !result.IsTransferRumour || result.PlayerName != "Morten Hjulmand" {
+			if result.RejectedByJev || result.PlayerName != "Morten Hjulmand" {
 				t.Errorf("Claude's extraction not returned: %+v", result)
 			}
 			if result.JevProbability == nil || result.JevModel != "jev-1.13.0" {
@@ -91,6 +95,22 @@ func TestGatedExtractor_AtOrAboveThresholdCallsClaude(t *testing.T) {
 				t.Errorf("stored extraction JSON lacks the gate verdict: %s", raw)
 			}
 		})
+	}
+}
+
+func TestGatedExtractor_LowClaudeConfidenceIsNotARejection(t *testing.T) {
+	jev := newFakeJev(t, http.StatusOK, jevBody("0.9"), nil)
+	claude, claudeCalls := countingAnthropicWith(t, `{"player_name":"Morten Hjulmand","to_club_name":"Arsenal","status":"rumoured","summary":"s","confidence":0.05}`)
+
+	result, err := newTestGate(jev.srv.URL, claude.URL, 0.5).Extract(context.Background(), "Arsenal linked with Hjulmand")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if n := claudeCalls.Load(); n != 1 {
+		t.Errorf("Anthropic got %d calls, want 1", n)
+	}
+	if result.RejectedByJev || result.Confidence != 0.05 || result.ToClubName != "Arsenal" {
+		t.Errorf("result = %+v, want Jev's pass kept with Claude's 0.05 confidence as data", result)
 	}
 }
 
