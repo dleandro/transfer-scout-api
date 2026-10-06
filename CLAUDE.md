@@ -117,6 +117,16 @@ follow-ups and risk areas that were recorded with it.
   actual SQL correctness gets a real-Postgres integration test guarded by
   `t.Skip` when `DATABASE_URL` is unset (see
   `internal/store/integration_test.go`), so `go test ./...` still passes
-  without a database running.
+  without a database running. To actually run them, the database needs
+  migrations applied **and** `seed/seed.sql` loaded (`make migrate-up`
+  then `make seed`) — several tests rely on the seeded sources and clubs,
+  which migrations don't create. CI does the same (see
+  `.github/workflows/ci.yml`).
+- `internal/store` is the only package that knows about pgx errors. A
+  lookup of a missing row returns an entity sentinel
+  (`store.ErrRumourNotFound`, `store.ErrClubNotFound`) — translated from
+  `pgx.ErrNoRows` or a `23503` FK violation inside the store — and
+  handlers map it to `404` with `errors.Is`. Never import pgx in
+  `internal/api` to check for not-found.
 - PRs are left open for the project owner to review — do not self-merge.
 

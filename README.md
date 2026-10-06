@@ -26,6 +26,20 @@ make run-ingest
 make run-extract
 ```
 
+## Integration tests
+
+`go test ./...` skips the Postgres-backed integration tests unless
+`DATABASE_URL` is set. To run them, point `DATABASE_URL` at a database with
+migrations applied **and** `seed/seed.sql` loaded — several tests rely on the
+seeded sources and clubs, which migrations don't create:
+
+```sh
+docker compose up -d db
+make migrate-up
+make seed
+make test
+```
+
 ## Makefile targets
 
 | Target          | Description                                  |
