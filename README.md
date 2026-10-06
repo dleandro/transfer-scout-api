@@ -70,3 +70,7 @@ transfer rumour before paying Claude to extract it. See `.env.example`.
 | `JEV_MODEL` | `jev-1.13.0` | Pinned Jev version. Re-measure `JEV_MIN_PROBABILITY` when changing it. |
 | `JEV_MIN_PROBABILITY` | `0.5` | Jev probability an article needs to reach Claude. Placeholder, unmeasured — choose it from the eval's threshold sweep. |
 | `EXTRACT_BASE_URL`, `TYPESAFE_BASE_URL` | empty | Endpoint overrides for local smoke runs against fake servers. |
+
+`go run ./cmd/reclassify` (dry run) / `-apply` re-checks rumours stored under
+the old gate with Jev alone and deletes those whose articles all fall below
+`JEV_MIN_PROBABILITY`. Needs `DATABASE_URL` and `TYPESAFE_API_KEY`.
