@@ -56,6 +56,13 @@ type Result struct {
 	// Confidence is how sure the model is of the extracted fields, in [0,1].
 	// It qualifies the details; it does not decide whether this is a rumour.
 	Confidence float64 `json:"confidence"`
+
+	// JevProbability and JevModel record the classifier gate's verdict
+	// (see GatedExtractor), stored with the extraction so the threshold
+	// can be audited and re-measured later. They are set by the gate, not
+	// by the extraction model, and are absent when no gate ran.
+	JevProbability *float64 `json:"jev_probability,omitempty"`
+	JevModel       string   `json:"jev_model,omitempty"`
 }
 
 // Usable reports whether a result should be turned into a rumour.

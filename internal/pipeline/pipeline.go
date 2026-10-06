@@ -80,13 +80,10 @@ type ExtractStats struct {
 }
 
 // NewExtractor builds the extractor the config asks for: the stub when no
-// API key is set, the Anthropic extractor otherwise.
+// API key is set, otherwise Claude behind the Jev gate — and an error when
+// EXTRACT_API_KEY is set without TYPESAFE_API_KEY. See extract.NewFromConfig.
 func NewExtractor(cfg config.Config) (extract.Extractor, error) {
-	if cfg.ExtractAPIKey == "" {
-		slog.Warn("extract: EXTRACT_API_KEY not set, using stub extractor — no articles will actually be extracted")
-		return extract.StubExtractor{}, nil
-	}
-	return extract.NewAnthropicExtractor(cfg.ExtractAPIKey, cfg.ExtractModel), nil
+	return extract.NewFromConfig(cfg)
 }
 
 // NewExtractDeps wires RunExtract's dependencies from config and the real
