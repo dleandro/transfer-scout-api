@@ -12,8 +12,11 @@ repo it belongs to, so you can work from issues alone without this file
 open — this file is the canonical full-detail version they link back to.
 
 **Locked decisions (do not re-litigate):**
-- API (`cmd/api`) → Google Cloud Run service (Docker). `cmd/ingest` /
-  `cmd/extract` → Cloud Run Jobs, triggered by Cloud Scheduler.
+- API (`cmd/api`) → Google Cloud Run service (Docker). `cmd/pipeline`
+  (ingest then extract in one process) → one Cloud Run Job, triggered by
+  Cloud Scheduler. (Originally two jobs, `cmd/ingest` and `cmd/extract`,
+  scheduled 30 minutes apart; merged because the offset was a guess with
+  no real dependency behind it — see Tasks 5.4/5.5.)
 - Database → Neon (free serverless Postgres, real wire-protocol compatible
   with pgx — no driver changes needed, just connection strings).
 - Frontend → Vercel free Hobby tier (deliberately not Dockerized — best
@@ -331,43 +334,45 @@ open — this file is the canonical full-detail version they link back to.
   Must finish before Task 5.5 goes live — don't schedule an unverified
   extractor.
 
-### Task 5.4 — Create Cloud Run Jobs for ingest and extract
+### Task 5.4 — Create the Cloud Run Job for the pipeline
 - **Repo**: transfer-scout-api / GCP
 - **Scope**: using the rebuilt (post 5.1/5.2) Task 1.1 image:
-  - `transfer-scout-ingest`: `command` override `/app/ingest`; env
-    `DATABASE_URL` (pooled — short insert bursts are fine pooled); timeout
-    sized for a full RSS sweep (5–10 min); retries 0–1 are safe since
-    `InsertArticle`'s `ON CONFLICT (url) DO NOTHING` makes reruns idempotent.
-  - `transfer-scout-extract`: `command` override `/app/extract`; env
-    `DATABASE_URL` (pooled), `EXTRACT_API_KEY` (**Secret Manager** — the one
-    genuinely sensitive credential in this system), `EXTRACT_MODEL`; timeout
-    sized for a 50-article batch's worst-case LLM latency. Confirm before
-    setting retries > 0: `MarkExtracted` sets `processed=true` regardless of
-    per-article extraction success (`cmd/extract/main.go:67-69`), so a
-    job-level retry after a mid-run crash re-lists a fresh
-    `ListUnprocessed` batch and is likely benign — verify this holds rather
-    than assuming it.
-- **Acceptance criteria**: `gcloud run jobs execute` for both jobs completes
-  and produces the expected DB changes (spot-check via `psql`/API).
+  - `command` override `/app/pipeline`, which runs ingest then extract in
+    one process. (This originally specified two jobs, `/app/ingest` and
+    `/app/extract`; they were merged into `cmd/pipeline` once the first
+    production run showed the extract job draining 50 of ~290 new articles
+    a week.) Env: `DATABASE_URL` (pooled), `EXTRACT_API_KEY` (**Secret
+    Manager** — the one genuinely sensitive credential in this system),
+    `EXTRACT_MODEL`, optionally `EXTRACT_MAX_ARTICLES_PER_RUN` (default
+    500).
+  - Timeout sized for a full RSS sweep plus extracting up to
+    `EXTRACT_MAX_ARTICLES_PER_RUN` articles at worst-case LLM latency.
+    Extract drains the unprocessed queue in batches of 50 until it is empty
+    or the cap is reached, and logs a warning when the cap leaves articles
+    queued. A run cut short by the timeout exits non-zero; every article it
+    finished is already marked processed, so the next run continues.
+  - Retries: `InsertArticle`'s `ON CONFLICT (url) DO NOTHING` makes ingest
+    reruns idempotent, and `MarkExtracted` sets `processed=true` regardless
+    of per-article extraction success (`internal/pipeline`), so a
+    job-level retry re-lists only what is still queued. An ingest failure
+    (a dead feed) does not skip extract but does fail the execution.
+- **Acceptance criteria**: `gcloud run jobs execute` completes and produces
+  the expected DB changes (spot-check via `psql`/API).
 - **Dependencies**: Tasks 5.1, 5.2, 5.3, 3.1, and Secret Manager wiring
   analogous to Task 4.4's.
 
-### Task 5.5 — Cloud Scheduler cron triggers
+### Task 5.5 — Cloud Scheduler cron trigger
 - **Repo**: cross-cutting / GCP
-- **Why**: closes "nothing schedules `cmd/extract`" and replaces the old
-  in-process `INGEST_POLL_INTERVAL` (removed in Task 5.1) with an
-  externally-owned cadence. Free tier allows 3 scheduler jobs; this plan
-  uses 2.
-- **Scope**: two Cloud Scheduler jobs, each HTTP-triggering its Cloud Run
-  Job's run endpoint:
-  - `ingest-schedule`: every 5 minutes (`*/5 * * * *`, matching the old
-    default `INGEST_POLL_INTERVAL=5m` so behavior doesn't regress).
-  - `extract-schedule`: every 10–15 minutes (no prior precedent — tune
-    against Task 5.3's observed Anthropic latency/cost).
-  Document both schedules in `transfer-scout-api/CLAUDE.md`'s Deployment
-  section.
-- **Acceptance criteria**: both scheduler jobs show successful executions
-  over at least one full cycle each.
+- **Why**: replaces the old in-process `INGEST_POLL_INTERVAL` (removed in
+  Task 5.1) with an externally-owned cadence. Free tier allows 3 scheduler
+  jobs; this uses 1.
+- **Scope**: one Cloud Scheduler job HTTP-triggering the pipeline Cloud Run
+  Job's run endpoint. (Originally two triggers, ingest then extract 30
+  minutes later; the offset was a guess, and one process running both
+  stages in order removes it.) Document the schedule in
+  `transfer-scout-api/CLAUDE.md`'s Deployment section.
+- **Acceptance criteria**: the scheduler job shows successful executions
+  over at least one full cycle.
 - **Dependencies**: Task 5.4.
 - **Flag**: rumours won't appear in the API/feed until Milestone 1.4
   (`rumour upsert + clustering`, currently open PR #10) merges — nothing

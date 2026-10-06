@@ -1,7 +1,7 @@
 -include .env
 export
 
-.PHONY: build run-api run-ingest run-extract migrate-up migrate-down seed test vet tidy docker-build docker-up docker-migrate docker-ingest docker-extract
+.PHONY: build run-api run-ingest run-extract run-pipeline migrate-up migrate-down seed test vet tidy docker-build docker-up docker-migrate docker-ingest docker-extract docker-pipeline
 
 build:
 	go build ./...
@@ -14,6 +14,9 @@ run-ingest:
 
 run-extract:
 	go run ./cmd/extract
+
+run-pipeline:
+	go run ./cmd/pipeline
 
 migrate-up:
 	DATABASE_URL=$(DATABASE_URL_UNPOOLED) go run ./cmd/migrate up
@@ -47,3 +50,6 @@ docker-ingest:
 
 docker-extract:
 	docker compose run --rm extract
+
+docker-pipeline:
+	docker compose run --rm pipeline

@@ -1,7 +1,8 @@
-// Command ingest polls configured RSS feeds and stores new articles for
-// later extraction, once, then exits. Production runs cmd/pipeline (ingest
-// then extract) instead; this binary is for running the stage on its own.
-// See internal/pipeline and internal/ingest.
+// Command pipeline is the scheduled production job: it runs ingest, then
+// extract, in one process, and exits. Extract always runs — its input is
+// the unprocessed-article queue, not what this ingest found — and a failure
+// in either stage makes the process exit non-zero so the Cloud Run Job
+// execution shows as failed. See internal/pipeline.
 package main
 
 import (
@@ -35,8 +36,16 @@ func main() {
 	}
 	defer pool.Close()
 
-	if err := pipeline.RunIngest(ctx, ingest.NewPoller(store.New(pool))); err != nil {
-		slog.Error("ingest: failed", "error", err)
+	s := store.New(pool)
+	deps, err := pipeline.NewExtractDeps(cfg, s)
+	if err != nil {
+		slog.Error("extract: build extractor", "error", err)
+		pool.Close()
+		os.Exit(1)
+	}
+
+	if err := pipeline.Run(ctx, ingest.NewPoller(s), deps); err != nil {
+		slog.Error("pipeline: failed", "error", err)
 		pool.Close()
 		os.Exit(1)
 	}

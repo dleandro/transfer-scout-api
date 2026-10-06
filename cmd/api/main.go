@@ -41,7 +41,7 @@ func main() {
 		os.Exit(1)
 	}
 	// AuthJWTSecret/GoogleClientID aren't validated in config.Load() since
-	// cmd/ingest/cmd/extract share it and never need them — cmd/api fails
+	// the worker binaries share it and never need them — cmd/api fails
 	// fast on them here instead, same spirit as DatabaseURL.
 	if err := validateAuthSecret(cfg.AuthJWTSecret); err != nil {
 		slog.Error("config", "error", err)

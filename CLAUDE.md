@@ -21,15 +21,20 @@ backend, priority) and `transfer-scout-web` (Next.js frontend, later).
   pinned to `go 1.25.0` — matching the toolchain actually installed
   (1.25.3) rather than an artificially pinned older pgx. Flagged, not
   silently changed.
-- Three binaries: `cmd/api` (REST API), `cmd/ingest` (RSS poller —
-  one-shot batch per invocation as of the production roadmap's Task 5.1;
-  originally an in-process ticker loop, changed so Cloud Scheduler can own
-  cadence by triggering a Cloud Run Job, see PRODUCTION_ROADMAP.md),
-  `cmd/extract` (LLM extraction worker — one-shot batch, not a ticker
-  loop; calls the Anthropic Messages API, see Milestone 1.3). `cmd/migrate`
-  is a fourth, dev-only binary wrapping golang-migrate for
-  `make migrate-up`/`make migrate-down` — not part of the three application
-  binaries.
+- Binaries: `cmd/api` (REST API) and `cmd/pipeline` (the scheduled job:
+  ingest then extract in one process, one Cloud Run Job, one Cloud
+  Scheduler trigger). The stage logic lives in `internal/pipeline`;
+  `cmd/ingest` (RSS poller) and `cmd/extract` (LLM extraction worker,
+  Anthropic Messages API, see Milestone 1.3) are thin binaries that run one
+  stage each, for manual use. All are one-shot per invocation, not ticker
+  loops — Cloud Scheduler owns cadence (production roadmap Task 5.1).
+  Extract always runs after ingest whatever ingest did, since its input is
+  the `processed = false` queue; a failed ingest still makes the process
+  exit non-zero. Extract drains that queue in batches of 50 until it is
+  empty or `EXTRACT_MAX_ARTICLES_PER_RUN` (default 500) articles have been
+  attempted, and logs a warning when the cap leaves articles queued.
+  `cmd/migrate` is a dev-only binary wrapping golang-migrate for
+  `make migrate-up`/`make migrate-down` — not an application binary.
 - Core entity is a "rumour": a long-lived thread UNIQUE per (player_id,
   to_club_id, transfer_window). The column is `transfer_window`, not
   `window` (reserved word).

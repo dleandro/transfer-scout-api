@@ -22,7 +22,8 @@ make migrate-up
 make seed
 
 make run-api      # http://localhost:8080
-make run-ingest
+make run-pipeline # ingest then extract, as the scheduled job does
+make run-ingest   # or one stage at a time
 make run-extract
 ```
 
@@ -32,8 +33,9 @@ make run-extract
 |-----------------|-----------------------------------------------|
 | `make build`    | `go build ./...`                              |
 | `make run-api`  | run the REST API                              |
-| `make run-ingest` | run the RSS ingest poller                   |
-| `make run-extract` | run the LLM extraction worker (stub)       |
+| `make run-pipeline` | run ingest then extract (the scheduled production job) |
+| `make run-ingest` | run the RSS ingest poller once                |
+| `make run-extract` | drain the unprocessed queue through the LLM extractor (stub without `EXTRACT_API_KEY`) |
 | `make migrate-up` | apply all pending migrations                |
 | `make migrate-down` | roll back the last migration              |
 | `make seed`     | load `seed/seed.sql` (clubs + sources) into the DB running in Docker |
