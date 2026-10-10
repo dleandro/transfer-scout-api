@@ -41,6 +41,8 @@ const mutationsRateLimit = 10 // requests per minute per user
 // before any validation runs.
 const maxRequestBodyBytes = 64 * 1024
 
+const gzipLevel = 5
+
 // Store is the subset of store.Store the API needs. Defined here (rather
 // than depending on the concrete *store.Store) so Server can be exercised
 // in tests against a fake, without a real Postgres connection — mirrors
@@ -94,6 +96,7 @@ func (s *Server) Router() http.Handler {
 	r.Get("/health", s.handleHealth)
 
 	r.Route("/api/v1", func(r chi.Router) {
+		r.Use(middleware.Compress(gzipLevel, "application/json"))
 		r.Use(httprate.LimitByIP(rumoursRateLimit, time.Minute))
 		// OptionalAuth lets handleListRumours/handleGetRumour populate
 		// liked_by_me for a recognized caller while staying public —
