@@ -1,0 +1,122 @@
+{
+  "name": "Brasileirão Série A",
+  "short_name": "BSA",
+  "clubs": [
+    {
+      "name": "Athletico Paranaense",
+      "short_name": "CAP",
+      "crest_url": "",
+      "aliases": [
+        "Athletico"
+      ]
+    },
+    {
+      "name": "Atlético Mineiro",
+      "short_name": "CAM",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/2/27/Clube_Atl%C3%A9tico_Mineiro_logo.svg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=original",
+      "aliases": [
+        "Atletico",
+        "Galo"
+      ]
+    },
+    {
+      "name": "Bahia",
+      "short_name": "BAH",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/2/2c/Esporte_Clube_Bahia_logo.svg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=original"
+    },
+    {
+      "name": "Botafogo",
+      "short_name": "BOT",
+      "crest_url": ""
+    },
+    {
+      "name": "Chapecoense",
+      "short_name": "CHA",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/4/4e/Logo_Associa%C3%A7%C3%A3o_Chapecoense_de_Futebol.svg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=original"
+    },
+    {
+      "name": "Corinthians",
+      "short_name": "COR",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/5/5a/Sport_Club_Corinthians_Paulista_crest.svg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original"
+    },
+    {
+      "name": "Coritiba",
+      "short_name": "CFC",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/b/bd/Coritiba_Foot_Ball_Club_logo.svg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=original"
+    },
+    {
+      "name": "Cruzeiro",
+      "short_name": "CRU",
+      "crest_url": ""
+    },
+    {
+      "name": "Flamengo",
+      "short_name": "FLA",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/9/96/Clube_de_Regatas_do_Flamengo_logo.svg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=original"
+    },
+    {
+      "name": "Fluminense",
+      "short_name": "FLU",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/1/12/Fluminense_Football_Club.svg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=original"
+    },
+    {
+      "name": "Grêmio",
+      "short_name": "GRE",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/0/08/Gremio_logo.svg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=original"
+    },
+    {
+      "name": "Internacional",
+      "short_name": "INT",
+      "crest_url": "",
+      "aliases": [
+        "Inter"
+      ]
+    },
+    {
+      "name": "Mirassol",
+      "short_name": "MIR",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/f/fd/Mirassol_Futebol_Clube_logo_%283_stars%29.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=original"
+    },
+    {
+      "name": "Palmeiras",
+      "short_name": "PAL",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/6/68/Sociedade_Esportiva_Palmeiras_logo_%281_red_star%29.svg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=original"
+    },
+    {
+      "name": "Red Bull Bragantino",
+      "short_name": "RBB",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/2/2e/Red_Bull_Bragantino_logo.svg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+      "aliases": [
+        "Bragantino"
+      ]
+    },
+    {
+      "name": "Remo",
+      "short_name": "REM",
+      "crest_url": ""
+    },
+    {
+      "name": "Santos",
+      "short_name": "SAN",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/1/15/Santos_Logo.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=original"
+    },
+    {
+      "name": "São Paulo",
+      "short_name": "SAO",
+      "crest_url": ""
+    },
+    {
+      "name": "Vasco da Gama",
+      "short_name": "VAS",
+      "crest_url": "",
+      "aliases": [
+        "Vasco"
+      ]
+    },
+    {
+      "name": "Vitória",
+      "short_name": "VIT",
+      "crest_url": ""
+    }
+  ]
+}

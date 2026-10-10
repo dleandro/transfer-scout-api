@@ -4,7 +4,7 @@ Context for future Claude Code sessions working on transfer-scout-api.
 
 ## What this is
 
-Transfer Scout aggregates Premier League transfer rumours from many news
+Transfer Scout aggregates football transfer rumours from many news
 sources, deduplicates and clusters them into per-deal threads, scores source
 reliability, and (later) adds a prediction game where users bet virtual
 points on whether rumours come true. Revenue: display ads now, premium
@@ -33,8 +33,9 @@ backend, priority) and `transfer-scout-web` (Next.js frontend, later).
   exit non-zero. Extract drains that queue in batches of 50 until it is
   empty or `EXTRACT_MAX_ARTICLES_PER_RUN` (default 500) articles have been
   attempted, and logs a warning when the cap leaves articles queued.
-  `cmd/migrate` is a dev-only binary wrapping golang-migrate for
-  `make migrate-up`/`make migrate-down` — not an application binary.
+  `cmd/migrate` wraps golang-migrate for `make migrate-up`/`make
+  migrate-down` and is also the production `transfer-scout-migrate` Cloud
+  Run Job; after a successful `up` it runs the club roster sync (below).
 - Core entity is a "rumour": a long-lived thread UNIQUE per (player_id,
   to_club_id, transfer_window). The column is `transfer_window`, not
   `window` (reserved word).
@@ -83,8 +84,39 @@ backend, priority) and `transfer-scout-web` (Next.js frontend, later).
   transaction (`store.DeleteRumours`), cascading rumour_events, comments
   and likes; articles are never deleted. Any Jev error aborts before
   deleting. Run it only after `JEV_MIN_PROBABILITY` has been measured.
-- PL only for the MVP. Current window: `summer-2026` (`TRANSFER_WINDOW` env
-  var, defaults to this in `internal/config`).
+- Every league, no default filter: the feed shows rumours from all leagues;
+  `?league_id=` narrows it. Current window: `summer-2026`
+  (`TRANSFER_WINDOW` env var, defaults to this in `internal/config`).
+- Club roster (dec_01M4HBK41FEFCA5F869VTQPCS8): one embedded JSON file per
+  league in `internal/store/roster/` (`name`, `short_name`, `clubs[]` of
+  `name`, `short_name`, `crest_url`, `aliases`) is the single source of
+  truth for leagues, canonical club names, crests and aliases. Adding a
+  league is adding a file; no Go change. The loader (`roster.go`) fails at
+  package init, and therefore in every store test, on unknown fields, a
+  club name repeated across leagues (compared case- and accent-folded), an
+  alias equal to another club's name, or a crest that isn't a
+  Wikipedia/Wikimedia URL. An alias listed on two or more clubs ("Inter",
+  "Real", "Sporting", "Atletico", "Racing") is ambiguous and resolves to
+  nothing; "Athletic" is deliberately no club's alias. `GetOrCreateClub`
+  resolves names through the roster (exact, alias, accent-folded, FC/AFC
+  affixes) and stamps league, crest and short name for known clubs; an
+  unknown club is still stored, with a NULL league. `store.SyncRoster`, run
+  by `cmd/migrate up`, is how every database (prod included) gets the
+  roster, in two round trips whatever the roster size: one SELECT of club
+  names, then one simple-protocol multi-statement query (atomic, no
+  prepared statements, so PgBouncer transaction mode is fine) that renames
+  rows stored under an alias to the canonical name (reporting any it can't
+  because the canonical row already exists), upserts every league and
+  club, overwrites league and short name, fills crests (never blanking
+  one), and detaches clubs that left a roster league. It is idempotent.
+  The league/club statements it runs are exactly the generated block in
+  `seed/seed.sql`; `TestSeedSQLMatchesRoster` fails on drift and prints the
+  replacement. Crests are en.wikipedia/upload.wikimedia.org file URLs
+  verified to return 200 when added; an unverifiable crest is `""`.
+  Promotion/relegation is a JSON edit plus a seed regeneration; prod picks
+  it up at the deploy's migrate step (`gcloud run jobs execute
+  transfer-scout-migrate`), which re-runs the sync even with no pending
+  migration.
 
 ## Current status (as of Milestone 3.2)
 
@@ -158,8 +190,9 @@ follow-ups and risk areas that were recorded with it.
   `internal/store/integration_test.go`), so `go test ./...` still passes
   without a database running. To actually run them, the database needs
   migrations applied **and** `seed/seed.sql` loaded (`make migrate-up`
-  then `make seed`) — several tests rely on the seeded sources and clubs,
-  which migrations don't create. CI does the same (see
+  then `make seed`) — several tests rely on the seeded sources, which
+  migrations don't create (`migrate up` itself syncs the roster's leagues
+  and clubs). CI does the same (see
   `.github/workflows/ci.yml`).
 - `internal/store` is the only package that knows about pgx errors. A
   lookup of a missing row returns an entity sentinel

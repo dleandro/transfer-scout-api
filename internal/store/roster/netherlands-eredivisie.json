@@ -1,0 +1,114 @@
+{
+  "name": "Eredivisie",
+  "short_name": "ERE",
+  "clubs": [
+    {
+      "name": "ADO Den Haag",
+      "short_name": "ADO",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/a/ad/ADO_Den_Haag_logo.svg",
+      "aliases": [
+        "ADO"
+      ]
+    },
+    {
+      "name": "AZ Alkmaar",
+      "short_name": "AZ",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/e/e0/AZ_Alkmaar.svg",
+      "aliases": [
+        "AZ"
+      ]
+    },
+    {
+      "name": "Ajax",
+      "short_name": "AJA",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/0/0d/Logo_AFC_Ajax_%281928-1991%2C_2025-%29.png"
+    },
+    {
+      "name": "Cambuur",
+      "short_name": "CAM",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/c/cb/SC_Cambuur_logo.svg"
+    },
+    {
+      "name": "Excelsior",
+      "short_name": "EXC",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/e/e1/Excelsior_Rotterdam_logo_2021.svg"
+    },
+    {
+      "name": "Feyenoord",
+      "short_name": "FEY",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/f/f9/Feyenoord_logo_since_2024.svg"
+    },
+    {
+      "name": "Fortuna Sittard",
+      "short_name": "FOR",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/e/ef/Fortuna_Sittard_Logo.svg"
+    },
+    {
+      "name": "Go Ahead Eagles",
+      "short_name": "GAE",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/d/d4/Go_Ahead_Eagles_logo.svg"
+    },
+    {
+      "name": "Groningen",
+      "short_name": "GRO",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/2/2c/FC_Groningen_logo.svg"
+    },
+    {
+      "name": "Heerenveen",
+      "short_name": "HEE",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/e/e1/SC_Heerenveen_logo.svg"
+    },
+    {
+      "name": "NEC Nijmegen",
+      "short_name": "NEC",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/3/38/NEC_Nijmegen_logo.svg",
+      "aliases": [
+        "NEC"
+      ]
+    },
+    {
+      "name": "PEC Zwolle",
+      "short_name": "PEC",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/f/f3/PEC_Zwolle_logo.svg",
+      "aliases": [
+        "Zwolle"
+      ]
+    },
+    {
+      "name": "PSV Eindhoven",
+      "short_name": "PSV",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/0/05/PSV_Eindhoven.svg",
+      "aliases": [
+        "PSV"
+      ]
+    },
+    {
+      "name": "Sparta Rotterdam",
+      "short_name": "SPA",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/9/9f/Sparta_Rotterdam_logo.svg",
+      "aliases": [
+        "Sparta"
+      ]
+    },
+    {
+      "name": "Telstar",
+      "short_name": "TEL",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/4/4d/SC_Telstar_logo.svg"
+    },
+    {
+      "name": "Twente",
+      "short_name": "TWE",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/e/e3/FC_Twente.svg"
+    },
+    {
+      "name": "Utrecht",
+      "short_name": "UTR",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/5/5d/Logo_FC_Utrecht.svg"
+    },
+    {
+      "name": "Willem II",
+      "short_name": "WIL",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/7/77/Willem_II_logo.svg"
+    }
+  ]
+}

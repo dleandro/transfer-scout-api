@@ -1,0 +1,195 @@
+{
+  "name": "Argentine Primera División",
+  "short_name": "LPF",
+  "clubs": [
+    {
+      "name": "Aldosivi",
+      "short_name": "ALD",
+      "crest_url": ""
+    },
+    {
+      "name": "Argentinos Juniors",
+      "short_name": "ARG",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/5/5e/Asociaci%C3%B3n_Atl%C3%A9tica_Argentinos_Juniors_logo.svg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=original",
+      "aliases": [
+        "Argentinos"
+      ]
+    },
+    {
+      "name": "Atlético Tucumán",
+      "short_name": "ATU",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/9/92/Atletico_tucuman_nuevo2.svg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=original",
+      "aliases": [
+        "Atletico"
+      ]
+    },
+    {
+      "name": "Banfield",
+      "short_name": "BAN",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/1/16/CA_Banfield_%282014%29.svg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=original"
+    },
+    {
+      "name": "Barracas Central",
+      "short_name": "BAR",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/9/99/Barracas_central_logo.svg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=original"
+    },
+    {
+      "name": "Belgrano",
+      "short_name": "BEL",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/a/a7/Club_Atl%C3%A9tico_Belgrano_2026.svg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=original"
+    },
+    {
+      "name": "Boca Juniors",
+      "short_name": "BOC",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/e/e3/Boca_Juniors_logo18.svg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=original",
+      "aliases": [
+        "Boca"
+      ]
+    },
+    {
+      "name": "Central Córdoba",
+      "short_name": "CCO",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/9/92/Central_Cordoba_SdE_crest_%282025%29.svg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=original"
+    },
+    {
+      "name": "Defensa y Justicia",
+      "short_name": "DYJ",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/7/70/Escudo_del_Club_Social_y_Deportivo_Defensa_y_Justicia.svg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=original"
+    },
+    {
+      "name": "Deportivo Riestra",
+      "short_name": "RIE",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/a/ab/Escudo_del_Club_Deportivo_Riestra.svg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=original",
+      "aliases": [
+        "Riestra"
+      ]
+    },
+    {
+      "name": "Estudiantes",
+      "short_name": "EST",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/1/15/Estudiantes_de_la_Plata_crest_%282025%29_cropped.svg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=original",
+      "aliases": [
+        "Estudiantes de La Plata"
+      ]
+    },
+    {
+      "name": "Estudiantes de Río Cuarto",
+      "short_name": "ERC",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/2/20/Escudo_Asociacion_Atl%C3%A9tica_Estudiantes_de_R%C3%ADo_Cuarto.svg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=original"
+    },
+    {
+      "name": "Gimnasia y Esgrima La Plata",
+      "short_name": "GLP",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/6/6d/Gimnasia_Esgrima_LP_logo.svg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+      "aliases": [
+        "Gimnasia La Plata"
+      ]
+    },
+    {
+      "name": "Gimnasia y Esgrima de Mendoza",
+      "short_name": "GME",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/9/90/Escudo_Club_Atl%C3%A9tico_Gimnasia_y_Esgrima_Mendoza.png?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=original",
+      "aliases": [
+        "Gimnasia Mendoza"
+      ]
+    },
+    {
+      "name": "Huracán",
+      "short_name": "HUR",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/d/dd/Emblema_oficial_del_Club_Atl%C3%A9tico_Hurac%C3%A1n.svg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=original"
+    },
+    {
+      "name": "Independiente",
+      "short_name": "IND",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/d/db/Escudo_del_Club_Atl%C3%A9tico_Independiente.svg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=original"
+    },
+    {
+      "name": "Independiente Rivadavia",
+      "short_name": "IRI",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/7/7f/Escudo_del_Club_Independiente_Rivadavia.svg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=original"
+    },
+    {
+      "name": "Instituto",
+      "short_name": "INS",
+      "crest_url": ""
+    },
+    {
+      "name": "Lanús",
+      "short_name": "LAN",
+      "crest_url": ""
+    },
+    {
+      "name": "Newell's Old Boys",
+      "short_name": "NOB",
+      "crest_url": "",
+      "aliases": [
+        "Newell's"
+      ]
+    },
+    {
+      "name": "Platense",
+      "short_name": "PLA",
+      "crest_url": ""
+    },
+    {
+      "name": "Racing Club",
+      "short_name": "RAC",
+      "crest_url": "",
+      "aliases": [
+        "Racing"
+      ]
+    },
+    {
+      "name": "River Plate",
+      "short_name": "RIV",
+      "crest_url": "",
+      "aliases": [
+        "River"
+      ]
+    },
+    {
+      "name": "Rosario Central",
+      "short_name": "ROS",
+      "crest_url": ""
+    },
+    {
+      "name": "San Lorenzo",
+      "short_name": "SLO",
+      "crest_url": ""
+    },
+    {
+      "name": "Sarmiento",
+      "short_name": "SAR",
+      "crest_url": ""
+    },
+    {
+      "name": "Talleres",
+      "short_name": "TAL",
+      "crest_url": "",
+      "aliases": [
+        "Talleres de Córdoba"
+      ]
+    },
+    {
+      "name": "Tigre",
+      "short_name": "TIG",
+      "crest_url": ""
+    },
+    {
+      "name": "Unión",
+      "short_name": "UNI",
+      "crest_url": "",
+      "aliases": [
+        "Union Santa Fe"
+      ]
+    },
+    {
+      "name": "Vélez Sarsfield",
+      "short_name": "VEL",
+      "crest_url": "",
+      "aliases": [
+        "Velez"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,119 @@
+{
+  "name": "Serie A",
+  "short_name": "SA",
+  "clubs": [
+    {
+      "name": "AC Milan",
+      "short_name": "MIL",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/d/d0/Logo_of_AC_Milan.svg",
+      "aliases": [
+        "Milan"
+      ]
+    },
+    {
+      "name": "Atalanta",
+      "short_name": "ATA",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/f/f2/Atalanta_BC_new_logo.svg"
+    },
+    {
+      "name": "Bologna",
+      "short_name": "BOL",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/5/5b/Bologna_F.C._1909_logo.svg"
+    },
+    {
+      "name": "Cagliari",
+      "short_name": "CAG",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/6/61/Cagliari_Calcio_1920.svg"
+    },
+    {
+      "name": "Como",
+      "short_name": "COM",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/9/99/Calcio_Como_-_logo_%28Italy%2C_2019-%29.svg"
+    },
+    {
+      "name": "Fiorentina",
+      "short_name": "FIO",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/8/8c/ACF_Fiorentina_-_logo_%28Italy%2C_2022%29.svg"
+    },
+    {
+      "name": "Frosinone",
+      "short_name": "FRO",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/0/0b/Frosinone_Calcio_logo.svg"
+    },
+    {
+      "name": "Genoa",
+      "short_name": "GEN",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/2/2c/Genoa_CFC_crest.svg"
+    },
+    {
+      "name": "Inter Milan",
+      "short_name": "INT",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/0/05/FC_Internazionale_Milano_2021.svg",
+      "aliases": [
+        "Inter",
+        "Internazionale"
+      ]
+    },
+    {
+      "name": "Juventus",
+      "short_name": "JUV",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/e/ed/Juventus_FC_-_logo_black_%28Italy%2C_2020%29.svg",
+      "aliases": [
+        "Juve"
+      ]
+    },
+    {
+      "name": "Lazio",
+      "short_name": "LAZ",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/c/ce/S.S._Lazio_badge.svg"
+    },
+    {
+      "name": "Lecce",
+      "short_name": "LEC",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/2/23/US_Lecce_crest.svg"
+    },
+    {
+      "name": "Monza",
+      "short_name": "MON",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/a/a7/AC_Monza_logo_%282021%29.svg"
+    },
+    {
+      "name": "Napoli",
+      "short_name": "NAP",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/4/4d/SSC_Napoli_2025_%28white_and_azure%29.svg"
+    },
+    {
+      "name": "Parma",
+      "short_name": "PAR",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/9/97/Logo_Parma_Calcio_1913_%28adozione_2016%29.svg"
+    },
+    {
+      "name": "Roma",
+      "short_name": "ROM",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/f/f7/AS_Roma_logo_%282017%29.svg",
+      "aliases": [
+        "AS Roma"
+      ]
+    },
+    {
+      "name": "Sassuolo",
+      "short_name": "SAS",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/1/1c/US_Sassuolo_Calcio_logo.svg"
+    },
+    {
+      "name": "Torino",
+      "short_name": "TOR",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/2/2e/Torino_FC_Logo.svg"
+    },
+    {
+      "name": "Udinese",
+      "short_name": "UDI",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/c/ce/Udinese_Calcio_logo.svg"
+    },
+    {
+      "name": "Venezia",
+      "short_name": "VEN",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/3/39/Venezia_FC_crest.svg"
+    }
+  ]
+}

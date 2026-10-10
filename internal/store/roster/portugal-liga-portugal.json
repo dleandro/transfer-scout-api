@@ -1,0 +1,120 @@
+{
+  "name": "Liga Portugal",
+  "short_name": "LP",
+  "clubs": [
+    {
+      "name": "Académico de Viseu",
+      "short_name": "ACV",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/9/9f/A.C._Viseu.svg",
+      "aliases": [
+        "Academico Viseu"
+      ]
+    },
+    {
+      "name": "Alverca",
+      "short_name": "ALV",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/f/f5/F.C._Alverca_logo.svg"
+    },
+    {
+      "name": "Arouca",
+      "short_name": "ARO",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/9/9a/F.C._Arouca_logo.svg"
+    },
+    {
+      "name": "Benfica",
+      "short_name": "BEN",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/a/a2/SL_Benfica_logo.svg",
+      "aliases": [
+        "SL Benfica"
+      ]
+    },
+    {
+      "name": "Braga",
+      "short_name": "BRA",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/7/79/S.C._Braga_logo.svg",
+      "aliases": [
+        "Sporting Braga",
+        "SC Braga"
+      ]
+    },
+    {
+      "name": "Casa Pia",
+      "short_name": "CPI",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/6/68/Casa_Pia_A.C._logo.svg"
+    },
+    {
+      "name": "Estoril",
+      "short_name": "EST",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/9/94/GD_Estoril_Praia_logo.svg",
+      "aliases": [
+        "Estoril Praia"
+      ]
+    },
+    {
+      "name": "Estrela da Amadora",
+      "short_name": "EAM",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/0/08/S%C3%ADmbolo_Estrela_da_Amadora.svg",
+      "aliases": [
+        "Estrela Amadora"
+      ]
+    },
+    {
+      "name": "Famalicão",
+      "short_name": "FAM",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/0/0e/F.C._Famalic%C3%A3o_logo.svg"
+    },
+    {
+      "name": "Gil Vicente",
+      "short_name": "GIL",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/6/60/Gil_Vicente_F.C._logo.svg"
+    },
+    {
+      "name": "Marítimo",
+      "short_name": "MAR",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/3/30/C.S._Mar%C3%ADtimo_logo.svg"
+    },
+    {
+      "name": "Moreirense",
+      "short_name": "MOR",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/1/1b/Moreirense_Futebol_Clube_logo.svg"
+    },
+    {
+      "name": "Nacional",
+      "short_name": "NAC",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/9/90/C.D._Nacional_logo.svg"
+    },
+    {
+      "name": "Porto",
+      "short_name": "POR",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/f/f1/FC_Porto.svg"
+    },
+    {
+      "name": "Rio Ave",
+      "short_name": "RIO",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/0/0c/Rio_Ave_FC_logo.svg"
+    },
+    {
+      "name": "Santa Clara",
+      "short_name": "STC",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/3/37/C.D._Santa_Clara_logo.svg"
+    },
+    {
+      "name": "Sporting CP",
+      "short_name": "SCP",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/9/97/Sporting_Clube_de_Portugal_logo_%282026%29.svg",
+      "aliases": [
+        "Sporting",
+        "Sporting Lisbon"
+      ]
+    },
+    {
+      "name": "Vitória de Guimarães",
+      "short_name": "VSC",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/d/d5/Vit%C3%B3ria_Guimar%C3%A3es.svg",
+      "aliases": [
+        "Vitoria Guimaraes",
+        "Guimarães"
+      ]
+    }
+  ]
+}
