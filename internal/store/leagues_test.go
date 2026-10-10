@@ -32,13 +32,7 @@ func TestIntegration_ListLeagues_ReturnsSeededPremierLeague(t *testing.T) {
 	}
 }
 
-// TestIntegration_GetOrCreateClub_StampsLeagueForKnownPLClubOnly proves
-// GetOrCreateClub stamps league_id from the same known-club check as
-// crest_url (see clubCrests) — a club in that map gets the Premier
-// League's id, on both the create and ON CONFLICT backfill paths, while a
-// club outside it (e.g. a foreign club a rumour mentions in passing) stays
-// leagueless rather than defaulting to the PL.
-func TestIntegration_GetOrCreateClub_StampsLeagueForKnownPLClubOnly(t *testing.T) {
+func TestIntegration_GetOrCreateClub_StampsRosterLeagueOnly(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 
@@ -99,13 +93,13 @@ func TestIntegration_GetOrCreateClub_StampsLeagueForKnownPLClubOnly(t *testing.T
 		}
 	})
 
-	t.Run("leaves league_id nil for a club outside the known PL set", func(t *testing.T) {
-		id, err := s.GetOrCreateClub(ctx, uniqueName("Real Madrid"))
+	t.Run("leaves league_id nil for a club outside the roster", func(t *testing.T) {
+		id, err := s.GetOrCreateClub(ctx, uniqueName("Leyton Orient"))
 		if err != nil {
 			t.Fatalf("GetOrCreateClub: %v", err)
 		}
 		if got := leagueOf(id); got != nil {
-			t.Errorf("league_id = %v, want nil for a club outside the known PL set", *got)
+			t.Errorf("league_id = %v, want nil for a club outside the roster", *got)
 		}
 	})
 }

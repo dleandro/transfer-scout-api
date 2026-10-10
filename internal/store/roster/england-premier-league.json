@@ -1,0 +1,147 @@
+{
+  "name": "Premier League",
+  "short_name": "PL",
+  "clubs": [
+    {
+      "name": "Arsenal",
+      "short_name": "ARS",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/5/53/Arsenal_FC.svg"
+    },
+    {
+      "name": "Aston Villa",
+      "short_name": "AVL",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/9/9a/Aston_Villa_FC_new_crest.svg",
+      "aliases": [
+        "Villa"
+      ]
+    },
+    {
+      "name": "Bournemouth",
+      "short_name": "BOU",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/e/e5/AFC_Bournemouth_%282013%29.svg"
+    },
+    {
+      "name": "Brentford",
+      "short_name": "BRE",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/2/2a/Brentford_FC_crest.svg"
+    },
+    {
+      "name": "Brighton & Hove Albion",
+      "short_name": "BHA",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/d/d0/Brighton_and_Hove_Albion_FC_crest.svg",
+      "aliases": [
+        "Brighton",
+        "Brighton and Hove Albion"
+      ]
+    },
+    {
+      "name": "Chelsea",
+      "short_name": "CHE",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/c/cc/Chelsea_FC.svg"
+    },
+    {
+      "name": "Coventry City",
+      "short_name": "COV",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/7/7b/Coventry_City_FC_crest.svg",
+      "aliases": [
+        "Coventry"
+      ]
+    },
+    {
+      "name": "Crystal Palace",
+      "short_name": "CRY",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/a/a2/Crystal_Palace_FC_logo_%282022%29.svg",
+      "aliases": [
+        "Palace"
+      ]
+    },
+    {
+      "name": "Everton",
+      "short_name": "EVE",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/7/7c/Everton_FC_logo.svg"
+    },
+    {
+      "name": "Fulham",
+      "short_name": "FUL",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/e/eb/Fulham_FC_%28shield%29.svg"
+    },
+    {
+      "name": "Hull City",
+      "short_name": "HUL",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/5/54/Hull_City_A.F.C._logo.svg",
+      "aliases": [
+        "Hull"
+      ]
+    },
+    {
+      "name": "Ipswich Town",
+      "short_name": "IPS",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/4/43/Ipswich_Town.svg",
+      "aliases": [
+        "Ipswich"
+      ]
+    },
+    {
+      "name": "Leeds United",
+      "short_name": "LEE",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/5/54/Leeds_United_F.C._logo.svg",
+      "aliases": [
+        "Leeds"
+      ]
+    },
+    {
+      "name": "Liverpool",
+      "short_name": "LIV",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/0/0c/Liverpool_FC.svg"
+    },
+    {
+      "name": "Manchester City",
+      "short_name": "MCI",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/e/eb/Manchester_City_FC_badge.svg",
+      "aliases": [
+        "Man City"
+      ]
+    },
+    {
+      "name": "Manchester United",
+      "short_name": "MUN",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/7/7a/Manchester_United_FC_crest.svg",
+      "aliases": [
+        "Man Utd",
+        "Man United",
+        "Manchester Utd"
+      ]
+    },
+    {
+      "name": "Newcastle United",
+      "short_name": "NEW",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/5/56/Newcastle_United_Logo.svg",
+      "aliases": [
+        "Newcastle"
+      ]
+    },
+    {
+      "name": "Nottingham Forest",
+      "short_name": "NFO",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/e/e5/Nottingham_Forest_F.C._logo.svg",
+      "aliases": [
+        "Notts Forest",
+        "Nott'm Forest"
+      ]
+    },
+    {
+      "name": "Sunderland",
+      "short_name": "SUN",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/7/77/Logo_Sunderland.svg"
+    },
+    {
+      "name": "Tottenham Hotspur",
+      "short_name": "TOT",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/b/b4/Tottenham_Hotspur.svg",
+      "aliases": [
+        "Spurs",
+        "Tottenham"
+      ]
+    }
+  ]
+}

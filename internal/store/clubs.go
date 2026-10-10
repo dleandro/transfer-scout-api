@@ -8,43 +8,28 @@ import (
 	"github.com/dleandro/transfer-scout-api/internal/models"
 )
 
-// GetOrCreateClub returns the ID of the club matching name
-// (case-insensitive), creating a new row if none exists.
-//
-// The name is first resolved through canonicalClubName, so the spellings
-// football journalism actually uses — "Spurs", "Man Utd", "Arsenal FC" —
-// land on the one roster row instead of creating a second club and
-// splitting the same deal across two rumours. Canonicalisation only ever
-// rewrites to a name on the roster; anything else passes through, so a
-// non-Premier-League club keeps its own identity.
-//
-// Resolution lives here rather than in internal/cluster because this is the
-// single funnel every caller goes through — putting it in the caller would
-// leave the next one to rediscover the problem.
-//
-// It also stamps crest_url from crestURLFor (the single source of truth for
-// crests): on insert for a newly created club, and on conflict to backfill
-// a row that pre-dates the crest (e.g. the clubs from seed/seed.sql). The
-// COALESCE keeps an existing crest when the club is not in the map, so a
-// club dropping out of the map never nulls a crest that is already set.
-//
-// league_id is stamped the same way, reusing the same "is this club in
-// clubCrests" check rather than a second map — every club that map knows
-// about is a Premier League club for now. A club outside it (e.g. a
-// foreign club a rumour mentions only as the "from" side, like Real Madrid
-// in a Real Madrid -> PL move) gets no crest and no league — it stays NULL
-// rather than defaulting to the PL, which would misrepresent it.
 func (s *Store) GetOrCreateClub(ctx context.Context, name string) (uuid.UUID, error) {
-	name = canonicalClubName(name)
-	isKnownPLClub := crestURLFor(name) != nil
+	var shortName, crestURL, league *string
+	if entry, known := clubRoster.lookup(name); known {
+		name = entry.Name
+		shortName = &entry.ShortName
+		league = &entry.League
+		if entry.CrestURL != "" {
+			crestURL = &entry.CrestURL
+		}
+	} else {
+		name = tidyClubName(name)
+	}
+
 	var id uuid.UUID
 	err := s.Pool.QueryRow(ctx, `
-		INSERT INTO clubs (name, crest_url, league_id)
-		VALUES ($1, $2, CASE WHEN $3 THEN (SELECT id FROM leagues WHERE lower(name) = 'premier league') END)
+		INSERT INTO clubs (name, short_name, crest_url, league_id)
+		VALUES ($1, $2, $3, (SELECT id FROM leagues WHERE lower(name) = lower($4)))
 		ON CONFLICT (lower(name)) DO UPDATE
-		SET crest_url = COALESCE(EXCLUDED.crest_url, clubs.crest_url),
+		SET short_name = COALESCE(EXCLUDED.short_name, clubs.short_name),
+		    crest_url = COALESCE(EXCLUDED.crest_url, clubs.crest_url),
 		    league_id = COALESCE(EXCLUDED.league_id, clubs.league_id)
-		RETURNING id`, name, crestURLFor(name), isKnownPLClub).Scan(&id)
+		RETURNING id`, name, shortName, crestURL, league).Scan(&id)
 	return id, err
 }
 
@@ -61,11 +46,6 @@ type ClubFeedItem struct {
 	LeagueName *string `json:"league_name,omitempty"`
 }
 
-// ListClubs returns every club, alphabetically by name, plus whether
-// viewerID (nil for an anonymous caller) follows each one. leagueID, when
-// non-nil, narrows the result to clubs in that league. Unbounded (no
-// pagination) — fine at current single-window PL scale (20 clubs); revisit
-// if this ever spans multiple windows/leagues.
 func (s *Store) ListClubs(ctx context.Context, viewerID *uuid.UUID, leagueID *uuid.UUID) ([]ClubFeedItem, error) {
 	query := `
 		SELECT c.id, c.name, c.short_name, c.crest_url, c.league_id, c.created_at,

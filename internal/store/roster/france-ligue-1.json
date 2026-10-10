@@ -1,0 +1,111 @@
+{
+  "name": "Ligue 1",
+  "short_name": "L1",
+  "clubs": [
+    {
+      "name": "Angers",
+      "short_name": "ANG",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/f/f6/Angers_Sporting_Club_de_l%27Ouest_logo.svg"
+    },
+    {
+      "name": "Auxerre",
+      "short_name": "AUX",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/5/51/AJAuxerreLogo.svg"
+    },
+    {
+      "name": "Brest",
+      "short_name": "BRE",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/0/05/Stade_Brestois_29_logo.svg"
+    },
+    {
+      "name": "Le Havre",
+      "short_name": "HAC",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/f/fc/Le_Havre_AC_logo.svg"
+    },
+    {
+      "name": "Le Mans",
+      "short_name": "LEM",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/5/57/Le_Mans_FC_logo.svg"
+    },
+    {
+      "name": "Lens",
+      "short_name": "RCL",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/c/cc/RC_Lens_logo.svg"
+    },
+    {
+      "name": "Lille",
+      "short_name": "LIL",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/3/3f/Lille_OSC_2018_logo.svg",
+      "aliases": [
+        "LOSC"
+      ]
+    },
+    {
+      "name": "Lorient",
+      "short_name": "LOR",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/4/4c/FC_Lorient_logo.svg"
+    },
+    {
+      "name": "Lyon",
+      "short_name": "OL",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/1/1c/Olympique_Lyonnais_logo.svg",
+      "aliases": [
+        "Olympique Lyonnais",
+        "OL"
+      ]
+    },
+    {
+      "name": "Marseille",
+      "short_name": "OM",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/4/4f/Olympique_de_Marseille_2026_logo.svg",
+      "aliases": [
+        "OM",
+        "Olympique de Marseille"
+      ]
+    },
+    {
+      "name": "Monaco",
+      "short_name": "ASM",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/c/cf/LogoASMonacoFC2021.svg"
+    },
+    {
+      "name": "Nice",
+      "short_name": "NIC",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/2/2e/OGC_Nice_logo.svg"
+    },
+    {
+      "name": "Paris FC",
+      "short_name": "PFC",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/f/f3/Paris_FCLogo_11-24.png"
+    },
+    {
+      "name": "Paris Saint-Germain",
+      "short_name": "PSG",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/a/a7/Paris_Saint-Germain_F.C..svg",
+      "aliases": [
+        "PSG",
+        "Paris SG"
+      ]
+    },
+    {
+      "name": "Rennes",
+      "short_name": "REN",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/9/9e/Stade_Rennais_FC.svg"
+    },
+    {
+      "name": "Strasbourg",
+      "short_name": "RCS",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/8/80/Racing_Club_de_Strasbourg_logo.svg"
+    },
+    {
+      "name": "Toulouse",
+      "short_name": "TFC",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/6/63/Toulouse_FC_2018_logo.svg"
+    },
+    {
+      "name": "Troyes",
+      "short_name": "TRO",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/a/a9/ESTAC_Troyes_Logo.svg"
+    }
+  ]
+}

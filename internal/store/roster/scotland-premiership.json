@@ -1,0 +1,87 @@
+{
+  "name": "Scottish Premiership",
+  "short_name": "SPFL",
+  "clubs": [
+    {
+      "name": "Aberdeen",
+      "short_name": "ABE",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/f/fb/Aberdeen_FC_stars_crest.svg",
+      "aliases": [
+        "Dons"
+      ]
+    },
+    {
+      "name": "Celtic",
+      "short_name": "CEL",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/7/71/Celtic_FC_crest.svg"
+    },
+    {
+      "name": "Dundee",
+      "short_name": "DUN",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/3/3b/Dundee_FC_2025_Crest.svg"
+    },
+    {
+      "name": "Dundee United",
+      "short_name": "DDU",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/b/bf/Dundee_United_FC_crest.svg",
+      "aliases": [
+        "Dundee Utd"
+      ]
+    },
+    {
+      "name": "Falkirk",
+      "short_name": "FAL",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/5/5d/Falkirk_FC_logo.svg"
+    },
+    {
+      "name": "Heart of Midlothian",
+      "short_name": "HEA",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/6/61/Heart_of_Midlothian_FC_logo.svg",
+      "aliases": [
+        "Hearts"
+      ]
+    },
+    {
+      "name": "Hibernian",
+      "short_name": "HIB",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/0/03/Hibernian_FC_2026_crest.svg",
+      "aliases": [
+        "Hibs"
+      ]
+    },
+    {
+      "name": "Kilmarnock",
+      "short_name": "KIL",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/3/38/Kilmarnock_FC_crest.svg",
+      "aliases": [
+        "Killie"
+      ]
+    },
+    {
+      "name": "Motherwell",
+      "short_name": "MOT",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/c/c8/Motherwell_FC_crest.svg"
+    },
+    {
+      "name": "Rangers",
+      "short_name": "RAN",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/4/43/Rangers_FC.svg"
+    },
+    {
+      "name": "St Johnstone",
+      "short_name": "SJN",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/4/40/St_Johnstone_FC_crest.svg",
+      "aliases": [
+        "St. Johnstone"
+      ]
+    },
+    {
+      "name": "St Mirren",
+      "short_name": "STM",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/2/27/St_Mirren_FC_crest.svg",
+      "aliases": [
+        "St. Mirren"
+      ]
+    }
+  ]
+}

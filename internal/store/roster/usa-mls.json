@@ -1,0 +1,179 @@
+{
+  "name": "Major League Soccer",
+  "short_name": "MLS",
+  "clubs": [
+    {
+      "name": "Atlanta United",
+      "short_name": "ATL",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/b/bb/Atlanta_MLS.svg"
+    },
+    {
+      "name": "Austin FC",
+      "short_name": "ATX",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/8/85/Austin_FC_logo.svg"
+    },
+    {
+      "name": "CF Montréal",
+      "short_name": "MTL",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/f/fe/Logo_of_CF_Montreal_2023.svg",
+      "aliases": [
+        "Montreal"
+      ]
+    },
+    {
+      "name": "Charlotte FC",
+      "short_name": "CLT",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/9/91/Charlotte_FC_logo.svg"
+    },
+    {
+      "name": "Chicago Fire",
+      "short_name": "CHI",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/0/03/Chicago_Fire_logo%2C_2021.svg"
+    },
+    {
+      "name": "Colorado Rapids",
+      "short_name": "COL",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/2/2b/Colorado_Rapids_logo.svg"
+    },
+    {
+      "name": "Columbus Crew",
+      "short_name": "CLB",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/d/dc/Columbus_Crew_logo_2021.svg"
+    },
+    {
+      "name": "D.C. United",
+      "short_name": "DC",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/3/32/D.C._United_logo_%282016%29.svg",
+      "aliases": [
+        "DC United"
+      ]
+    },
+    {
+      "name": "FC Cincinnati",
+      "short_name": "CIN",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/7/78/FC_Cincinnati_primary_logo_2018.svg"
+    },
+    {
+      "name": "FC Dallas",
+      "short_name": "DAL",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/c/c9/FC_Dallas_logo.svg"
+    },
+    {
+      "name": "Houston Dynamo",
+      "short_name": "HOU",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/6/66/Houston_Dynamo_FC_logo.svg"
+    },
+    {
+      "name": "Inter Miami",
+      "short_name": "MIA",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/5/5c/Inter_Miami_CF_logo.svg",
+      "aliases": [
+        "Inter",
+        "Inter Miami CF"
+      ]
+    },
+    {
+      "name": "LA Galaxy",
+      "short_name": "LA",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/7/70/Los_Angeles_Galaxy_logo.svg"
+    },
+    {
+      "name": "Los Angeles FC",
+      "short_name": "LAFC",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/8/86/Los_Angeles_Football_Club.svg",
+      "aliases": [
+        "LAFC"
+      ]
+    },
+    {
+      "name": "Minnesota United",
+      "short_name": "MIN",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/e/e8/Minnesota_United_FC_%28MLS%29_Primary_logo.svg"
+    },
+    {
+      "name": "Nashville SC",
+      "short_name": "NSH",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/b/bc/Nashville_SC_logo%2C_2020.svg"
+    },
+    {
+      "name": "New England Revolution",
+      "short_name": "NE",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/8/8a/Logo_of_New_England_Revolution_%282021%29.svg"
+    },
+    {
+      "name": "New York City FC",
+      "short_name": "NYC",
+      "crest_url": "",
+      "aliases": [
+        "NYCFC"
+      ]
+    },
+    {
+      "name": "New York Red Bulls",
+      "short_name": "RBNY",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/5/51/New_York_Red_Bulls_logo.svg"
+    },
+    {
+      "name": "Orlando City",
+      "short_name": "ORL",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/6/6a/Orlando_City_2014.svg"
+    },
+    {
+      "name": "Philadelphia Union",
+      "short_name": "PHI",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/4/46/Philadelphia_Union_2018_logo.svg"
+    },
+    {
+      "name": "Portland Timbers",
+      "short_name": "POR",
+      "crest_url": ""
+    },
+    {
+      "name": "Real Salt Lake",
+      "short_name": "RSL",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/5/54/Real_Salt_Lake_2010.svg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original",
+      "aliases": [
+        "RSL"
+      ]
+    },
+    {
+      "name": "San Diego FC",
+      "short_name": "SD",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/6/6f/San_Diego_FC_logo.svg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original"
+    },
+    {
+      "name": "San Jose Earthquakes",
+      "short_name": "SJ",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/9/98/San_Jose_Earthquakes_2014.svg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original"
+    },
+    {
+      "name": "Seattle Sounders",
+      "short_name": "SEA",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/8/84/Seattle_Sounders_logo.svg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original"
+    },
+    {
+      "name": "Sporting Kansas City",
+      "short_name": "SKC",
+      "crest_url": "",
+      "aliases": [
+        "Sporting",
+        "Sporting KC"
+      ]
+    },
+    {
+      "name": "St. Louis City",
+      "short_name": "STL",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/1/1a/Logo_of_St._Louis_City_SC.svg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=original"
+    },
+    {
+      "name": "Toronto FC",
+      "short_name": "TOR",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/7/7c/Toronto_FC_Logo.svg?utm_source=en.wikipedia.org&utm_campaign=imageinfo&utm_content=original"
+    },
+    {
+      "name": "Vancouver Whitecaps",
+      "short_name": "VAN",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/7/7c/Vancouver_Whitecaps_logo.svg?utm_source=en.wikipedia.org&utm_campaign=api&utm_content=original"
+    }
+  ]
+}

@@ -213,9 +213,6 @@ func (s *Server) handleListPlayers(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"players": players})
 }
 
-// handleListLeagues returns every league, alphabetically by name — for
-// populating a filter dropdown (PL-only today, but the endpoint doesn't
-// assume that).
 func (s *Server) handleListLeagues(w http.ResponseWriter, r *http.Request) {
 	leagues, err := s.store.ListLeagues(r.Context())
 	if err != nil {

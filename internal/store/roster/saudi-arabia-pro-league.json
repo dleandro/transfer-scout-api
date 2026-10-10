@@ -1,0 +1,145 @@
+{
+  "name": "Saudi Pro League",
+  "short_name": "SPL",
+  "clubs": [
+    {
+      "name": "Abha",
+      "short_name": "ABH",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/7/76/Abha_Club_Logo.svg"
+    },
+    {
+      "name": "Al-Ahli",
+      "short_name": "AHL",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/4/45/Al_Ahli_Saudi_FC_logo.svg",
+      "aliases": [
+        "Al Ahli"
+      ]
+    },
+    {
+      "name": "Al-Diriyah",
+      "short_name": "DIR",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/3/32/Diriyah_Club_Logo.svg",
+      "aliases": [
+        "Al Diriyah"
+      ]
+    },
+    {
+      "name": "Al-Ettifaq",
+      "short_name": "ETT",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/3/34/Al-Ettifaq_FC_logo.svg",
+      "aliases": [
+        "Al Ettifaq"
+      ]
+    },
+    {
+      "name": "Al-Faisaly",
+      "short_name": "FAI",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/c/c9/Al-Faisaly_FC_New_Logo.png",
+      "aliases": [
+        "Al Faisaly"
+      ]
+    },
+    {
+      "name": "Al-Fateh",
+      "short_name": "FAT",
+      "crest_url": "",
+      "aliases": [
+        "Al Fateh"
+      ]
+    },
+    {
+      "name": "Al-Fayha",
+      "short_name": "FAY",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/0/0f/Al-Fayha_FC.svg",
+      "aliases": [
+        "Al Fayha"
+      ]
+    },
+    {
+      "name": "Al-Hazem",
+      "short_name": "HAZ",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/a/ab/Al-Hazem_FC_Logo.svg",
+      "aliases": [
+        "Al Hazem"
+      ]
+    },
+    {
+      "name": "Al-Hilal",
+      "short_name": "HIL",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/5/55/Al_Hilal_SFC_Logo.svg",
+      "aliases": [
+        "Al Hilal"
+      ]
+    },
+    {
+      "name": "Al-Ittihad",
+      "short_name": "ITT",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/8/87/Al-Ittihad_Club_%28Jeddah%29_logo.svg",
+      "aliases": [
+        "Al Ittihad",
+        "Ittihad"
+      ]
+    },
+    {
+      "name": "Al-Khaleej",
+      "short_name": "KHA",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/3/32/Al-Khaleej_FC_Logo.svg",
+      "aliases": [
+        "Al Khaleej"
+      ]
+    },
+    {
+      "name": "Al-Kholood",
+      "short_name": "KHO",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/b/b6/Al_Kholood_Club_Logo.svg",
+      "aliases": [
+        "Al Kholood"
+      ]
+    },
+    {
+      "name": "Al-Nassr",
+      "short_name": "NAS",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/3/3f/Nassr_FC_Logo.svg",
+      "aliases": [
+        "Al Nassr"
+      ]
+    },
+    {
+      "name": "Al-Qadsiah",
+      "short_name": "QAD",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/6/68/QAD_LOGO.png",
+      "aliases": [
+        "Al Qadsiah"
+      ]
+    },
+    {
+      "name": "Al-Riyadh",
+      "short_name": "RIY",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/3/39/Al-Riyadh_SC.svg",
+      "aliases": [
+        "Al Riyadh"
+      ]
+    },
+    {
+      "name": "Al-Shabab",
+      "short_name": "SHA",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/2/2d/Al_Shabab_FC_%28Riyadh%29.svg",
+      "aliases": [
+        "Al Shabab"
+      ]
+    },
+    {
+      "name": "Al-Taawoun",
+      "short_name": "TAA",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/0/08/Al_Taawoun_FC_Logo.svg",
+      "aliases": [
+        "Al Taawoun"
+      ]
+    },
+    {
+      "name": "Neom",
+      "short_name": "NEO",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/4/4a/Neom_SC_Logo.png"
+    }
+  ]
+}

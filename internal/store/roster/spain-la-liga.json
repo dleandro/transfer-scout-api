@@ -1,0 +1,147 @@
+{
+  "name": "La Liga",
+  "short_name": "LL",
+  "clubs": [
+    {
+      "name": "Alavés",
+      "short_name": "ALA",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/f/f8/Deportivo_Alaves_logo_%282020%29.svg",
+      "aliases": [
+        "Deportivo Alavés"
+      ]
+    },
+    {
+      "name": "Athletic Bilbao",
+      "short_name": "ATH",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/9/98/Club_Athletic_Bilbao_logo.svg",
+      "aliases": [
+        "Athletic Club"
+      ]
+    },
+    {
+      "name": "Atlético Madrid",
+      "short_name": "ATM",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/f/f9/Atletico_Madrid_Logo_2024.svg",
+      "aliases": [
+        "Atleti",
+        "Atletico"
+      ]
+    },
+    {
+      "name": "Barcelona",
+      "short_name": "BAR",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/4/47/FC_Barcelona_%28crest%29.svg",
+      "aliases": [
+        "Barca"
+      ]
+    },
+    {
+      "name": "Celta Vigo",
+      "short_name": "CEL",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/1/12/RC_Celta_de_Vigo_logo.svg",
+      "aliases": [
+        "Celta"
+      ]
+    },
+    {
+      "name": "Deportivo La Coruña",
+      "short_name": "DEP",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/5/56/RC_Deportivo_A_Coru%C3%B1a_logo_2026.svg",
+      "aliases": [
+        "Deportivo",
+        "Depor",
+        "Deportivo A Coruña"
+      ]
+    },
+    {
+      "name": "Elche",
+      "short_name": "ELC",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/a/a7/Elche_CF_logo.svg"
+    },
+    {
+      "name": "Espanyol",
+      "short_name": "ESP",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/9/92/RCD_Espanyol_crest.svg"
+    },
+    {
+      "name": "Getafe",
+      "short_name": "GET",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/4/46/Getafe_logo.svg"
+    },
+    {
+      "name": "Levante",
+      "short_name": "LEV",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/7/7b/Levante_Uni%C3%B3n_Deportiva%2C_S.A.D._logo.svg"
+    },
+    {
+      "name": "Málaga",
+      "short_name": "MAL",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/6/6d/M%C3%A1laga_CF.svg"
+    },
+    {
+      "name": "Osasuna",
+      "short_name": "OSA",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/3/38/CA_Osasuna_2024_crest.svg"
+    },
+    {
+      "name": "Racing Santander",
+      "short_name": "RAC",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/f/f5/Racing_de_Santander_logo.svg",
+      "aliases": [
+        "Racing",
+        "Racing de Santander"
+      ]
+    },
+    {
+      "name": "Rayo Vallecano",
+      "short_name": "RAY",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/d/d8/Rayo_Vallecano_logo.svg",
+      "aliases": [
+        "Rayo"
+      ]
+    },
+    {
+      "name": "Real Betis",
+      "short_name": "BET",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/2/2f/Real_Betis_2022_logo.svg",
+      "aliases": [
+        "Betis",
+        "Real"
+      ]
+    },
+    {
+      "name": "Real Madrid",
+      "short_name": "RMA",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/5/56/Real_Madrid_CF.svg",
+      "aliases": [
+        "Real",
+        "Los Blancos"
+      ]
+    },
+    {
+      "name": "Real Sociedad",
+      "short_name": "RSO",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/f/f1/Real_Sociedad_logo.svg",
+      "aliases": [
+        "Sociedad",
+        "La Real",
+        "Real"
+      ]
+    },
+    {
+      "name": "Sevilla",
+      "short_name": "SEV",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/3/3b/Sevilla_FC_logo.svg"
+    },
+    {
+      "name": "Valencia",
+      "short_name": "VAL",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/c/ce/Valenciacf.svg"
+    },
+    {
+      "name": "Villarreal",
+      "short_name": "VIL",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/b/b9/Villarreal_CF_logo-en.svg"
+    }
+  ]
+}

@@ -1,0 +1,134 @@
+{
+  "name": "Bundesliga",
+  "short_name": "BL",
+  "clubs": [
+    {
+      "name": "Augsburg",
+      "short_name": "FCA",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/c/c5/FC_Augsburg_logo.svg"
+    },
+    {
+      "name": "Bayer Leverkusen",
+      "short_name": "B04",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/5/59/Bayer_04_Leverkusen_logo.svg",
+      "aliases": [
+        "Leverkusen"
+      ]
+    },
+    {
+      "name": "Bayern Munich",
+      "short_name": "BAY",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/8/8d/FC_Bayern_M%C3%BCnchen_logo_%282024%29.svg",
+      "aliases": [
+        "Bayern",
+        "Bayern München"
+      ]
+    },
+    {
+      "name": "Borussia Dortmund",
+      "short_name": "BVB",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/6/67/Borussia_Dortmund_logo.svg",
+      "aliases": [
+        "Dortmund",
+        "BVB"
+      ]
+    },
+    {
+      "name": "Borussia Mönchengladbach",
+      "short_name": "BMG",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/8/81/Borussia_M%C3%B6nchengladbach_logo.svg",
+      "aliases": [
+        "Gladbach"
+      ]
+    },
+    {
+      "name": "Eintracht Frankfurt",
+      "short_name": "SGE",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/7/7e/Eintracht_Frankfurt_crest.svg",
+      "aliases": [
+        "Frankfurt"
+      ]
+    },
+    {
+      "name": "Elversberg",
+      "short_name": "SVE",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/d/d4/SV_Elversberg_Logo_2021.svg"
+    },
+    {
+      "name": "Freiburg",
+      "short_name": "SCF",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/6/6d/SC_Freiburg_logo.svg"
+    },
+    {
+      "name": "Hamburg",
+      "short_name": "HSV",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/f/f7/Hamburger_SV_logo.svg",
+      "aliases": [
+        "Hamburger SV",
+        "HSV"
+      ]
+    },
+    {
+      "name": "Hoffenheim",
+      "short_name": "TSG",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/e/e7/Logo_TSG_Hoffenheim.svg"
+    },
+    {
+      "name": "Köln",
+      "short_name": "KOE",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/0/01/1._FC_Koeln_Logo_2014%E2%80%93.svg",
+      "aliases": [
+        "Cologne",
+        "1. FC Köln"
+      ]
+    },
+    {
+      "name": "Mainz",
+      "short_name": "M05",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/1/1b/1._FSV_Mainz_05_logo.svg",
+      "aliases": [
+        "Mainz 05"
+      ]
+    },
+    {
+      "name": "Paderborn",
+      "short_name": "SCP",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/6/67/SC_Paderborn_07_Logo_new.svg"
+    },
+    {
+      "name": "RB Leipzig",
+      "short_name": "RBL",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/en/0/04/RB_Leipzig_2014_logo.svg",
+      "aliases": [
+        "Leipzig"
+      ]
+    },
+    {
+      "name": "Schalke",
+      "short_name": "S04",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/6/6d/FC_Schalke_04_Logo.svg",
+      "aliases": [
+        "Schalke 04"
+      ]
+    },
+    {
+      "name": "Stuttgart",
+      "short_name": "VFB",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/e/eb/VfB_Stuttgart_1893_Logo.svg"
+    },
+    {
+      "name": "Union Berlin",
+      "short_name": "FCU",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/4/44/1._FC_Union_Berlin_Logo.svg"
+    },
+    {
+      "name": "Werder Bremen",
+      "short_name": "SVW",
+      "crest_url": "https://upload.wikimedia.org/wikipedia/commons/b/be/SV-Werder-Bremen-Logo.svg",
+      "aliases": [
+        "Bremen",
+        "Werder"
+      ]
+    }
+  ]
+}
